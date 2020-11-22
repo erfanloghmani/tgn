@@ -249,7 +249,7 @@ for i in range(args.n_runs):
       # validation on unseen nodes
       train_memory_backup = tgn.memory.backup_memory()
 
-    val_ap, val_auc = eval_edge_prediction(model=tgn,
+    val_ap, val_auc, val_pos_prob = eval_edge_prediction(model=tgn,
                                                             negative_edge_sampler=val_rand_sampler,
                                                             data=val_data,
                                                             n_neighbors=NUM_NEIGHBORS)
@@ -261,7 +261,7 @@ for i in range(args.n_runs):
       tgn.memory.restore_memory(train_memory_backup)
 
     # Validate on unseen nodes
-    nn_val_ap, nn_val_auc = eval_edge_prediction(model=tgn,
+    nn_val_ap, nn_val_auc, nn_val_pos_prob = eval_edge_prediction(model=tgn,
                                                                         negative_edge_sampler=val_rand_sampler,
                                                                         data=new_node_val_data,
                                                                         n_neighbors=NUM_NEIGHBORS)
@@ -279,7 +279,9 @@ for i in range(args.n_runs):
         "new_nodes_val_aps": new_nodes_val_aps,
         "train_losses": train_losses,
         "epoch_times": epoch_times,
-        "total_epoch_times": total_epoch_times
+        "total_epoch_times": total_epoch_times,
+        "val_pos_prob": val_pos_prob.cpu().numpy(),
+        "nn_val_pos_prob": nn_val_pos_prob.cpu().numpy(),
     }, open(results_obs_path, 'w'))
     # Save temporary results to disk
     pickle.dump({
@@ -320,7 +322,7 @@ for i in range(args.n_runs):
 
   ### Test
   tgn.embedding_module.neighbor_finder = full_ngh_finder
-  test_ap, test_auc = eval_edge_prediction(model=tgn,
+  test_ap, test_auc, test_pos_prob = eval_edge_prediction(model=tgn,
                                                               negative_edge_sampler=test_rand_sampler,
                                                               data=test_data,
                                                               n_neighbors=NUM_NEIGHBORS)
@@ -329,7 +331,7 @@ for i in range(args.n_runs):
     tgn.memory.restore_memory(val_memory_backup)
 
   # Test on unseen nodes
-  nn_test_ap, nn_test_auc = eval_edge_prediction(model=tgn,
+  nn_test_ap, nn_test_auc, nn_test_pos_prob = eval_edge_prediction(model=tgn,
                                                                           negative_edge_sampler=nn_test_rand_sampler,
                                                                           data=new_node_test_data,
                                                                           n_neighbors=NUM_NEIGHBORS)
