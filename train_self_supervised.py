@@ -179,6 +179,7 @@ for i in range(args.n_runs):
 
   early_stopper = EarlyStopMonitor(max_round=args.patience)
   for epoch in range(NUM_EPOCH):
+    results_obs_path = "results/{}_{}_{}_obs.json".format(args.prefix, i, epoch) if i > 0 else "results/{}_{}_obs.json".format(args.prefix, epoch)
     start_epoch = time.time()
     ### Training
 
@@ -236,6 +237,8 @@ for i in range(args.n_runs):
     epoch_time = time.time() - start_epoch
     epoch_times.append(epoch_time)
 
+
+
     ### Validation
     # Validation uses the full graph
     tgn.set_neighbor_finder(full_ngh_finder)
@@ -269,7 +272,14 @@ for i in range(args.n_runs):
     new_nodes_val_aps.append(nn_val_ap)
     val_aps.append(val_ap)
     train_losses.append(np.mean(m_loss))
-
+    json.dump({
+        'm_loss': m_loss,
+        "val_aps": val_aps,
+        "new_nodes_val_aps": new_nodes_val_aps,
+        "train_losses": train_losses,
+        "epoch_times": epoch_times,
+        "total_epoch_times": total_epoch_times
+    }, open(results_obs_path, 'w'))
     # Save temporary results to disk
     pickle.dump({
       "val_aps": val_aps,
