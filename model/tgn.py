@@ -178,6 +178,7 @@ class TGN(torch.nn.Module):
                                                                               source_nodes,
                                                                               source_node_embedding,
                                                                               edge_times, edge_idxs)
+      updated_nodes = np.unique(np.concat(unique_sources, unique_destinations))
       if self.memory_update_at_start:
         self.memory.store_raw_messages(unique_sources, source_id_to_messages)
         self.memory.store_raw_messages(unique_destinations, destination_id_to_messages)
@@ -190,7 +191,7 @@ class TGN(torch.nn.Module):
         destination_node_embedding = memory[destination_nodes]
         negative_node_embedding = memory[negative_nodes]
 
-    return source_node_embedding, destination_node_embedding, negative_node_embedding
+    return source_node_embedding, destination_node_embedding, negative_node_embedding, updated_nodes
 
   def compute_edge_probabilities(self, source_nodes, destination_nodes, negative_nodes, edge_times,
                                  edge_idxs, n_neighbors=20):
@@ -207,7 +208,7 @@ class TGN(torch.nn.Module):
     :return: Probabilities for both the positive and negative edges
     """
     n_samples = len(source_nodes)
-    source_node_embedding, destination_node_embedding, negative_node_embedding = self.compute_temporal_embeddings(
+    source_node_embedding, destination_node_embedding, negative_node_embedding, updated_nodes = self.compute_temporal_embeddings(
       source_nodes, destination_nodes, negative_nodes, edge_times, edge_idxs, n_neighbors)
 
     score = self.affinity_score(torch.cat([source_node_embedding, source_node_embedding], dim=0),
@@ -216,7 +217,7 @@ class TGN(torch.nn.Module):
     pos_score = score[:n_samples]
     neg_score = score[n_samples:]
 
-    return pos_score.sigmoid(), neg_score.sigmoid()
+    return pos_score.sigmoid(), neg_score.sigmoid(), updated_nodes
 
   def update_memory(self, nodes, messages):
     # Aggregate messages for the same nodes

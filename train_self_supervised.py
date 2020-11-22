@@ -194,6 +194,7 @@ for i in range(args.n_runs):
     m_loss = []
 
     logger.info('start {} epoch'.format(epoch))
+    all_updated_nodes = []
     for k in range(0, num_batch, args.backprop_every):
       loss = 0
       optimizer.zero_grad()
@@ -220,8 +221,10 @@ for i in range(args.n_runs):
           neg_label = torch.zeros(size, dtype=torch.float, device=device)
 
         tgn = tgn.train()
-        pos_prob, neg_prob = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
+        pos_prob, neg_prob, updated_nodes = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
                                                             timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
+        all_updated_nodes.extend(updated_nodes)
+        all_updated_nodes = list(set(all_updated_nodes))
 
         loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
 
@@ -283,7 +286,8 @@ for i in range(args.n_runs):
         "total_epoch_times": total_epoch_times,
         "val_pos_prob": val_pos_prob.cpu().numpy().tolist(),
         "nn_val_pos_prob": nn_val_pos_prob.cpu().numpy().tolist(),
-        "embs": tgn.memory.memory.data.cpu().numpy().tolist()
+        "embs": tgn.memory.memory.data.cpu().numpy().tolist(),
+        "all_updated_nodes": all_updated_nodes
     }, open(results_obs_path, 'w'))
     # Save temporary results to disk
     pickle.dump({
