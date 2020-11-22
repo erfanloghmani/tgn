@@ -22,7 +22,7 @@ def eval_edge_prediction(model, negative_edge_sampler, data, n_neighbors, batch_
     num_test_instance = len(data.sources)
     num_test_batch = math.ceil(num_test_instance / TEST_BATCH_SIZE)
 
-    all_pos_prob = torch.zeros_like(data.sources)
+    all_pos_prob = torch.zeros(data.sources.shape[0])
     for k in range(num_test_batch):
       s_idx = k * TEST_BATCH_SIZE
       e_idx = min(num_test_instance, s_idx + TEST_BATCH_SIZE)
@@ -37,7 +37,7 @@ def eval_edge_prediction(model, negative_edge_sampler, data, n_neighbors, batch_
       pos_prob, neg_prob = model.compute_edge_probabilities(sources_batch, destinations_batch,
                                                             negative_samples, timestamps_batch,
                                                             edge_idxs_batch, n_neighbors)
-      all_pos_prob[s_idx:e_idx] = pos_prob.detach().clone()
+      all_pos_prob[s_idx:e_idx] = pos_prob.detach().clone()[:, 0]
 
       pred_score = np.concatenate([(pos_prob).cpu().numpy(), (neg_prob).cpu().numpy()])
       true_label = np.concatenate([np.ones(size), np.zeros(size)])

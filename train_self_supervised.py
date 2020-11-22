@@ -177,6 +177,7 @@ for i in range(args.n_runs):
   epoch_times = []
   total_epoch_times = []
   train_losses = []
+  
 
   early_stopper = EarlyStopMonitor(max_round=args.patience)
   for epoch in range(NUM_EPOCH):
@@ -280,8 +281,9 @@ for i in range(args.n_runs):
         "train_losses": train_losses,
         "epoch_times": epoch_times,
         "total_epoch_times": total_epoch_times,
-        "val_pos_prob": val_pos_prob.cpu().numpy(),
-        "nn_val_pos_prob": nn_val_pos_prob.cpu().numpy(),
+        "val_pos_prob": val_pos_prob.cpu().numpy().tolist(),
+        "nn_val_pos_prob": nn_val_pos_prob.cpu().numpy().tolist(),
+        "embs": tgn.memory.memory.data.cpu().numpy().tolist()
     }, open(results_obs_path, 'w'))
     # Save temporary results to disk
     pickle.dump({
