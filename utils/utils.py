@@ -143,7 +143,7 @@ class NeighborFinder:
     """
     assert (len(source_nodes) == len(timestamps))
 
-    tmp_n_neighbors = n_neighbors if n_neighbors > 0 else 1
+    tmp_n_neighbors = n_neighbors * 2 if n_neighbors > 0 else 1
     # NB! All interactions described in these matrices are sorted in each row by time
     neighbors = np.zeros((len(source_nodes), tmp_n_neighbors)).astype(
       np.int32)  # each entry in position (i,j) represent the id of the item targeted by user src_idx_l[i] with an interaction happening before cut_time_l[i]
@@ -179,8 +179,20 @@ class NeighborFinder:
           assert (len(source_edge_times) <= n_neighbors)
           assert (len(source_edge_idxs) <= n_neighbors)
 
-          neighbors[i, n_neighbors - len(source_neighbors):] = source_neighbors
-          edge_times[i, n_neighbors - len(source_edge_times):] = source_edge_times
-          edge_idxs[i, n_neighbors - len(source_edge_idxs):] = source_edge_idxs
+          neighbors[i, n_neighbors - len(source_neighbors):n_neighbors] = source_neighbors
+          edge_times[i, n_neighbors - len(source_edge_times):n_neighbors] = source_edge_times
+          edge_idxs[i, n_neighbors - len(source_edge_idxs):n_neighbors] = source_edge_idxs
+          for j, nb in enumerate(source_neighbors):
+            nn_source_neighbors, nn_source_edge_idxs, nn_source_edge_times = self.find_before(
+              nb, source_edge_times[i])
+            if len(nn_source_neighbors) > 0:
+              nn_source_edge_times = nn_source_edge_times[-n_neighbors:]
+              nn_source_neighbors = nn_source_neighbors[-n_neighbors:]
+              nn_source_edge_idxs = nn_source_edge_idxs[-n_neighbors:]
+
+              neighbors[i, 2 * n_neighbors - len(nn_source_neighbors):] = nn_source_neighbors
+              edge_times[i, 2 * n_neighbors - len(nn_source_edge_times):] = nn_source_edge_times
+              edge_idxs[i, 2 * n_neighbors - len(nn_source_edge_idxs):] = nn_source_edge_idxs
+
 
     return neighbors, edge_idxs, edge_times
