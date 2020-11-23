@@ -33,7 +33,7 @@ def eval_edge_prediction(model, negative_edge_sampler, data, n_neighbors, batch_
       size = len(sources_batch)
       _, negative_samples = negative_edge_sampler.sample(size)
 
-      pos_prob, neg_prob = model.compute_edge_probabilities(sources_batch, destinations_batch,
+      pos_prob, neg_prob, _ = model.compute_edge_probabilities(sources_batch, destinations_batch,
                                                             negative_samples, timestamps_batch,
                                                             edge_idxs_batch, n_neighbors)
 
@@ -63,7 +63,7 @@ def eval_node_classification(tgn, decoder, data, edge_idxs, batch_size, n_neighb
       timestamps_batch = data.timestamps[s_idx:e_idx]
       edge_idxs_batch = edge_idxs[s_idx: e_idx]
 
-      source_embedding, destination_embedding, _ = tgn.compute_temporal_embeddings(sources_batch,
+      source_embedding, destination_embedding, _, _ = tgn.compute_temporal_embeddings(sources_batch,
                                                                                    destinations_batch,
                                                                                    destinations_batch,
                                                                                    timestamps_batch,

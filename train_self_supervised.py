@@ -1,4 +1,5 @@
 import math
+import json
 import logging
 import time
 import sys
@@ -179,6 +180,7 @@ for i in range(args.n_runs):
 
   early_stopper = EarlyStopMonitor(max_round=args.patience)
   for epoch in range(NUM_EPOCH):
+    results_path_obs = "results/{}_{}_{}_obs.pkl".format(args.prefix, i, epoch) if i > 0 else "results/{}_{}_obs.pkl".format(args.prefix, epoch)
     start_epoch = time.time()
     ### Training
 
@@ -189,6 +191,7 @@ for i in range(args.n_runs):
     # Train using only training graph
     tgn.set_neighbor_finder(train_ngh_finder)
     m_loss = []
+    attns = []
 
     logger.info('start {} epoch'.format(epoch))
     for k in range(0, num_batch, args.backprop_every):
@@ -217,7 +220,7 @@ for i in range(args.n_runs):
           neg_label = torch.zeros(size, dtype=torch.float, device=device)
 
         tgn = tgn.train()
-        pos_prob, neg_prob = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
+        pos_prob, neg_prob, attn_map = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
                                                             timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
 
         loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
@@ -227,6 +230,7 @@ for i in range(args.n_runs):
       loss.backward()
       optimizer.step()
       m_loss.append(loss.item())
+      attns.append(attn_map.detach().cpu().numpy().tolist())
 
       # Detach memory after 'args.backprop_every' number of batches so we don't backpropagate to
       # the start of time
@@ -270,6 +274,15 @@ for i in range(args.n_runs):
     val_aps.append(val_ap)
     train_losses.append(np.mean(m_loss))
 
+    # Save temporary results to disk
+    json.dump({
+        "attns": attns,
+        "val_aps": val_aps,
+        "new_nodes_val_aps": new_nodes_val_aps,
+        "train_losses": train_losses,
+        "epoch_times": epoch_times,
+        "total_epoch_times": total_epoch_times
+    }, open(results_path_obs, "w"))
     # Save temporary results to disk
     pickle.dump({
       "val_aps": val_aps,

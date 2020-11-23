@@ -145,7 +145,7 @@ class TGN(torch.nn.Module):
                              dim=0)
 
     # Compute the embeddings using the embedding module
-    node_embedding = self.embedding_module.compute_embedding(memory=memory,
+    node_embedding, attn_map = self.embedding_module.compute_embedding(memory=memory,
                                                              source_nodes=nodes,
                                                              timestamps=timestamps,
                                                              n_layers=self.n_layers,
@@ -190,7 +190,7 @@ class TGN(torch.nn.Module):
         destination_node_embedding = memory[destination_nodes]
         negative_node_embedding = memory[negative_nodes]
 
-    return source_node_embedding, destination_node_embedding, negative_node_embedding
+    return source_node_embedding, destination_node_embedding, negative_node_embedding, attn_map
 
   def compute_edge_probabilities(self, source_nodes, destination_nodes, negative_nodes, edge_times,
                                  edge_idxs, n_neighbors=20):
@@ -207,7 +207,7 @@ class TGN(torch.nn.Module):
     :return: Probabilities for both the positive and negative edges
     """
     n_samples = len(source_nodes)
-    source_node_embedding, destination_node_embedding, negative_node_embedding = self.compute_temporal_embeddings(
+    source_node_embedding, destination_node_embedding, negative_node_embedding, attn_map = self.compute_temporal_embeddings(
       source_nodes, destination_nodes, negative_nodes, edge_times, edge_idxs, n_neighbors)
 
     score = self.affinity_score(torch.cat([source_node_embedding, source_node_embedding], dim=0),
@@ -216,7 +216,7 @@ class TGN(torch.nn.Module):
     pos_score = score[:n_samples]
     neg_score = score[n_samples:]
 
-    return pos_score.sigmoid(), neg_score.sigmoid()
+    return pos_score.sigmoid(), neg_score.sigmoid(), attn_map
 
   def update_memory(self, nodes, messages):
     # Aggregate messages for the same nodes
