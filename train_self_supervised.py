@@ -181,6 +181,7 @@ for i in range(args.n_runs):
 
     early_stopper = EarlyStopMonitor(max_round=args.patience, higher_better=False)
     for epoch in range(NUM_EPOCH):
+        results_obs_path = "results/{}_{}_{}.pkl".format(args.prefix, i, epoch) if i > 0 else "results/{}_{}.pkl".format(args.prefix, epoch)
         start_epoch = time.time()
         ### Training
 
@@ -272,6 +273,15 @@ for i in range(args.n_runs):
         val_ranks.append(val_rank)
         train_losses.append(np.mean(m_loss))
 
+        json.dump({
+            "m_loss": m_loss,
+            "val_ranks": val_ranks,
+            "new_nodes_val_ranks": new_nodes_val_ranks,
+            "train_losses": train_losses,
+            "epoch_times": epoch_times,
+            "total_epoch_times": total_epoch_times,
+            "embs": tgn.memory.memory.data.cpu().numpy().tolist(),
+        }, open(results_obs_path, 'w'))
         # Save temporary results to disk
         pickle.dump({
             "val_ranks": val_ranks,
