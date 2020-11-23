@@ -67,7 +67,7 @@ class TemporalAttentionLayer(torch.nn.Module):
 
     # print(query.shape, key.shape)
 
-    attn_output, attn_output_weights = self.multi_head_target(query=query, key=key, value=key,
+    attn_output, attn_output_weights_org = self.multi_head_target(query=query, key=key, value=key,
                                                               key_padding_mask=neighbors_padding_mask)
 
     # mask = torch.unsqueeze(neighbors_padding_mask, dim=2)  # mask [B, N, 1]
@@ -76,7 +76,7 @@ class TemporalAttentionLayer(torch.nn.Module):
     #                                                           mask=mask)
 
     attn_output = attn_output.squeeze()
-    attn_output_weights = attn_output_weights.squeeze()
+    attn_output_weights = attn_output_weights_org.squeeze()
 
     # Source nodes with no neighbors have an all zero attention output. The attention output is
     # then added or concatenated to the original source node features and then fed into an MLP.
@@ -87,4 +87,4 @@ class TemporalAttentionLayer(torch.nn.Module):
     # Skip connection with temporal attention over neighborhood and the features of the node itself
     attn_output = self.merger(attn_output, src_node_features)
 
-    return attn_output, attn_output_weights
+    return attn_output, attn_output_weights_org
