@@ -83,11 +83,11 @@ def get_data(dataset_name,
     n_total_unique_nodes = len(node_set) + 1
 
     source_next_dest_sequence = []
-    source_latest_dest = defaultdict(lambda: n_total_unique_nodes)
-    for cnt, source in reversed(enumerate(sources)):
+    source_latest_dest = defaultdict(lambda: n_total_unique_nodes - 1)
+    for cnt, source in reversed(list(enumerate(sources))):
         source_next_dest_sequence.append(source_latest_dest[source])
         source_latest_dest[source] = destinations[cnt]
-    source_next_dest_sequence = np.array(reversed(source_next_dest_sequence))
+    source_next_dest_sequence = np.array(source_next_dest_sequence)[::-1]
 
     full_data = Data(sources, destinations, timestamps, edge_idxs, labels, source_next_dest_sequence)
 

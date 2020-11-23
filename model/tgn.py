@@ -143,10 +143,11 @@ class TGN(torch.nn.Module):
         if use_negs:
             nodes = np.concatenate(
                 [source_nodes, destination_nodes, negative_nodes])
+            timestamps = np.concatenate([edge_times, edge_times, edge_times])
         else:
             nodes = np.concatenate([source_nodes, destination_nodes])
+            timestamps = np.concatenate([edge_times, edge_times])
         positives = np.concatenate([source_nodes, destination_nodes])
-        timestamps = np.concatenate([edge_times, edge_times, edge_times])
 
         memory = None
         time_diffs = None
@@ -170,16 +171,20 @@ class TGN(torch.nn.Module):
             destination_time_diffs = (
                 destination_time_diffs -
                 self.mean_time_shift_dst) / self.std_time_shift_dst
-            negative_time_diffs = torch.LongTensor(edge_times).to(
-                self.device) - last_update[negative_nodes].long()
-            negative_time_diffs = (
-                negative_time_diffs -
-                self.mean_time_shift_dst) / self.std_time_shift_dst
+            if use_negs:
+                negative_time_diffs = torch.LongTensor(edge_times).to(
+                    self.device) - last_update[negative_nodes].long()
+                negative_time_diffs = (
+                    negative_time_diffs -
+                    self.mean_time_shift_dst) / self.std_time_shift_dst
 
-            time_diffs = torch.cat([
-                source_time_diffs, destination_time_diffs, negative_time_diffs
-            ],
-                                   dim=0)
+                time_diffs = torch.cat([
+                    source_time_diffs, destination_time_diffs, negative_time_diffs
+                ], dim=0)
+            else:
+                time_diffs = torch.cat([
+                    source_time_diffs, destination_time_diffs
+                ], dim=0)
 
         # Compute the embeddings using the embedding module
         node_embedding = self.embedding_module.compute_embedding(

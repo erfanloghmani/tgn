@@ -16,6 +16,7 @@ from utils.data_processing import get_data, compute_time_statistics
 torch.manual_seed(0)
 np.random.seed(0)
 
+CUDA_LAUNCH_BLOCKING="1"
 ### Argument and global variables
 parser = argparse.ArgumentParser('TGN self-supervised training')
 parser.add_argument('-d', '--data', type=str, help='Dataset name (eg. wikipedia or reddit)',
@@ -223,7 +224,7 @@ for i in range(args.n_runs):
                     sources_batch, destinations_batch, next_d_batch,
                     timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
 
-                loss += criterion_jodie(next_destination_emb, pred_next_destination_emb)
+                loss += criterion_jodie(next_destination_emb.detach(), pred_next_destination_emb)
 
             loss /= args.backprop_every
 
