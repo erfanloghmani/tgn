@@ -184,7 +184,7 @@ class NeighborFinder:
           edge_idxs[i, n_neighbors - len(source_edge_idxs):n_neighbors] = source_edge_idxs
           for j, nb in enumerate(source_neighbors):
             nn_source_neighbors, nn_source_edge_idxs, nn_source_edge_times = self.find_before(
-              nb, source_edge_times[i])
+              nb, source_edge_times[j])
             if len(nn_source_neighbors) > 0:
               nn_source_edge_times = nn_source_edge_times[-n_neighbors:]
               nn_source_neighbors = nn_source_neighbors[-n_neighbors:]
