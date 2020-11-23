@@ -249,7 +249,7 @@ for i in range(args.n_runs):
       # validation on unseen nodes
       train_memory_backup = tgn.memory.backup_memory()
 
-    val_ap, val_auc = eval_edge_prediction(model=tgn,
+    val_ap, val_auc, pos_prob = eval_edge_prediction(model=tgn,
                                                             negative_edge_sampler=val_rand_sampler,
                                                             data=val_data,
                                                             n_neighbors=NUM_NEIGHBORS)
@@ -261,7 +261,7 @@ for i in range(args.n_runs):
       tgn.memory.restore_memory(train_memory_backup)
 
     # Validate on unseen nodes
-    nn_val_ap, nn_val_auc = eval_edge_prediction(model=tgn,
+    nn_val_ap, nn_val_auc, nn_pos_prob = eval_edge_prediction(model=tgn,
                                                                         negative_edge_sampler=val_rand_sampler,
                                                                         data=new_node_val_data,
                                                                         n_neighbors=NUM_NEIGHBORS)
@@ -281,7 +281,9 @@ for i in range(args.n_runs):
         "new_nodes_val_aps": new_nodes_val_aps,
         "train_losses": train_losses,
         "epoch_times": epoch_times,
-        "total_epoch_times": total_epoch_times
+        "total_epoch_times": total_epoch_times,
+        "val_pos_prob": pos_prob.cpu().numpy().tolist(),
+        "nn_val_pos_prob": nn_pos_prob.cpu().numpy().tolist(),
     }, open(results_path_obs, "w"))
     # Save temporary results to disk
     pickle.dump({
