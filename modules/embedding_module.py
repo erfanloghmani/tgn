@@ -129,19 +129,19 @@ class GraphEmbedding(EmbeddingModule):
 
       mask = neighbors_torch == 0
 
-      source_embedding = self.aggregate(n_layers, source_node_features,
+      source_embedding, _ = self.aggregate(n_layers, source_node_features,
                                         source_nodes_time_embedding,
                                         neighbor_embeddings,
                                         edge_time_embeddings,
                                         edge_features,
                                         mask)
 
-      return source_embedding
+      return source_embedding, _
 
   def aggregate(self, n_layers, source_node_features, source_nodes_time_embedding,
                 neighbor_embeddings,
                 edge_time_embeddings, edge_features, mask):
-    return None
+    return None, None
 
 
 class GraphSumEmbedding(GraphEmbedding):
@@ -180,7 +180,7 @@ class GraphSumEmbedding(GraphEmbedding):
     source_embedding = torch.cat([neighbors_sum, source_features], dim=1)
     source_embedding = self.linear_2[n_layer - 1](source_embedding)
 
-    return source_embedding
+    return source_embedding, None
 
 
 class GraphAttentionEmbedding(GraphEmbedding):
@@ -210,14 +210,14 @@ class GraphAttentionEmbedding(GraphEmbedding):
                 edge_time_embeddings, edge_features, mask):
     attention_model = self.attention_models[n_layer - 1]
 
-    source_embedding, _ = attention_model(source_node_features,
+    source_embedding, _, attn_map = attention_model(source_node_features,
                                           source_nodes_time_embedding,
                                           neighbor_embeddings,
                                           edge_time_embeddings,
                                           edge_features,
                                           mask)
 
-    return source_embedding
+    return source_embedding, attn_map
 
 
 def get_embedding_module(module_type, node_features, edge_features, memory, neighbor_finder,
