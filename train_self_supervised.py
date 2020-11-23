@@ -8,7 +8,7 @@ import numpy as np
 import pickle
 from pathlib import Path
 
-from evaluation.evaluation import eval_edge_prediction
+from evaluation.evaluation import eval_edge_prediction, eval_edge_prediction_jodie
 from model.tgn import TGN
 from utils.utils import EarlyStopMonitor, RandEdgeSampler, get_neighbor_finder
 from utils.data_processing import get_data, compute_time_statistics
@@ -173,13 +173,13 @@ for i in range(args.n_runs):
     logger.info('num of batches per epoch: {}'.format(num_batch))
     idx_list = np.arange(num_instance)
 
-    new_nodes_val_aps = []
-    val_aps = []
+    new_nodes_val_ranks = []
+    val_ranks = []
     epoch_times = []
     total_epoch_times = []
     train_losses = []
 
-    early_stopper = EarlyStopMonitor(max_round=args.patience)
+    early_stopper = EarlyStopMonitor(max_round=args.patience, higher_better=False)
     for epoch in range(NUM_EPOCH):
         start_epoch = time.time()
         ### Training
@@ -249,7 +249,7 @@ for i in range(args.n_runs):
             # validation on unseen nodes
             train_memory_backup = tgn.memory.backup_memory()
 
-        val_ranks = eval_edge_prediction_jodie(model=tgn,
+        val_rank = eval_edge_prediction_jodie(model=tgn,
                                                data=val_data,
                                                n_neighbors=NUM_NEIGHBORS)
         if USE_MEMORY:
@@ -260,7 +260,7 @@ for i in range(args.n_runs):
             tgn.memory.restore_memory(train_memory_backup)
 
         # Validate on unseen nodes
-        nn_val_ranks = eval_edge_prediction(model=tgn,
+        nn_val_rank = eval_edge_prediction_jodie(model=tgn,
                                             data=new_node_val_data,
                                             n_neighbors=NUM_NEIGHBORS)
 
@@ -268,14 +268,14 @@ for i in range(args.n_runs):
             # Restore memory we had at the end of validation
             tgn.memory.restore_memory(val_memory_backup)
 
-        new_nodes_val_ranks.append(nn_val_ranks)
-        val_ranks.append(val_ranks)
+        new_nodes_val_ranks.append(nn_val_rank)
+        val_ranks.append(val_rank)
         train_losses.append(np.mean(m_loss))
 
         # Save temporary results to disk
         pickle.dump({
             "val_ranks": val_ranks,
-            "new_nodes_val_aps": new_nodes_val_aps,
+            "new_nodes_val_ranks": new_nodes_val_ranks,
             "train_losses": train_losses,
             "epoch_times": epoch_times,
             "total_epoch_times": total_epoch_times
@@ -287,10 +287,10 @@ for i in range(args.n_runs):
         logger.info('epoch: {} took {:.2f}s'.format(epoch, total_epoch_time))
         logger.info('Epoch mean loss: {}'.format(np.mean(m_loss)))
         logger.info(
-            'val ranks: {}, new node val ranks: {}'.format(val_ranks, nn_val_ranks))
+            'val rank: {}, new node val rank: {}'.format(val_rank, nn_val_rank))
 
         # Early stopping
-        if early_stopper.early_stop_check(val_ranks):
+        if early_stopper.early_stop_check(val_rank):
             logger.info('No improvement over {} epochs, stop training'.format(early_stopper.max_round))
             logger.info(f'Loading the best model at epoch {early_stopper.best_epoch}')
             best_model_path = get_checkpoint_path(early_stopper.best_epoch)

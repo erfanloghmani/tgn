@@ -75,24 +75,27 @@ def eval_edge_prediction_jodie(model,
             e_idx = min(num_test_instance, s_idx + TEST_BATCH_SIZE)
             sources_batch = data.sources[s_idx:e_idx]
             destinations_batch = data.destinations[s_idx:e_idx]
-            next_destinations_batch = data.next_destinations[s_idx:e_idx]
+            next_destinations_batch = data.next_destination[s_idx:e_idx]
             timestamps_batch = data.timestamps[s_idx:e_idx]
             edge_idxs_batch = data.edge_idxs[s_idx:e_idx]
+            
+            size = len(sources_batch)
 
             pred_next_destination_emb, next_destination_emb = model.predict_next_destination(
                 sources_batch, destinations_batch, next_destinations_batch,
                 timestamps_batch, edge_idxs_batch, n_neighbors)
 
-            destinations_embs = model.memory.get_memory(np.unique(data.destinations))
-            euclidean_distances = nn.PairwiseDistance()(pred_next_destination_emb.repeat(destinations_embs.shape[0], 1),
-                                                        destinations_embs)
+            destinations_embs = model.memory.memory
+            euclidean_distances = nn.PairwiseDistance()(pred_next_destination_emb.repeat_interleave(repeats=destinations_embs.shape[0], dim=0),
+                                                        destinations_embs.repeat(size, 1))
 
             # CALCULATE RANK OF THE TRUE ITEM AMONG ALL ITEMS
-            true_item_distance = euclidean_distances[next_destinations_batch]
+            true_item_distance = euclidean_distances[next_destinations_batch + np.arange(size) * destinations_embs.shape[0]]
+            euclidean_distances = euclidean_distances.reshape(destinations_embs.shape[0], size)
             euclidean_distances_smaller = (euclidean_distances < true_item_distance).data.cpu().numpy()
-            true_item_rank = np.sum(euclidean_distances_smaller) + 1
+            true_item_rank = euclidean_distances_smaller.sum(axis=0) + 1
 
-            val_ranks.append(true_item_rank)
+            val_ranks.extend(true_item_rank.tolist())
 
     return np.mean(val_ranks)
 
