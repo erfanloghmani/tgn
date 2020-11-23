@@ -1,4 +1,5 @@
 import math
+import json
 import logging
 import time
 import sys
@@ -221,7 +222,7 @@ for i in range(args.n_runs):
         tgn = tgn.train()
         pos_prob, neg_prob, _ = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
                                                                timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
-        attns.append(_.cpu().numpy().tolist())
+        attns.append(_.cpu().detach().numpy().tolist())
 
         loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
 
