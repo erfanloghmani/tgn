@@ -195,6 +195,7 @@ for i in range(args.n_runs):
 
     logger.info('start {} epoch'.format(epoch))
     all_updated_nodes = []
+    all_pos_prob = np.zeros(num_instance)
     for k in range(0, num_batch, args.backprop_every):
       loss = 0
       optimizer.zero_grad()
@@ -225,6 +226,8 @@ for i in range(args.n_runs):
                                                             timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
         all_updated_nodes.extend(updated_nodes)
         all_updated_nodes = list(set(all_updated_nodes))
+
+        all_pos_prob[start_idx:end_idx] = pos_prob.detach().cpu().numpy()
 
         loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
 
@@ -279,6 +282,7 @@ for i in range(args.n_runs):
     train_losses.append(np.mean(m_loss))
     json.dump({
         'm_loss': m_loss,
+        "all_pos_prob": all_pos_prob.tolist(),
         "val_aps": val_aps,
         "new_nodes_val_aps": new_nodes_val_aps,
         "train_losses": train_losses,
