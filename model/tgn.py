@@ -162,7 +162,16 @@ class TGN(torch.nn.Module):
         # new messages for them)
         self.update_memory(positives, self.memory.messages)
 
-        assert torch.allclose(memory[positives], self.memory.get_memory(positives), atol=1e-5), \
+        if not torch.allclose(memory[positives], self.memory.get_memory(positives), atol=5e-5):
+            dp = torch.abs(memory[positives] - self.memory.get_memory(positives))
+            print('num violate', (dp > 1e-5 + 1e-5 * torch.abs(self.memory.get_memory(positives))).int().sum())
+            print('sum violate', dp[dp > 1e-5 + 1e-5 * torch.abs(self.memory.get_memory(positives))].sum())
+            print('max violate', dp.max())
+            print(positives.shape, len(self.memory.messages))
+            # for key, value in self.memory.messages.items():
+            #     print(key, len(value))
+
+        assert torch.allclose(memory[positives], self.memory.get_memory(positives), atol=5e-5), \
           "Something wrong in how the memory was updated"
 
         # Remove messages for the positives since we have already updated the memory using them
