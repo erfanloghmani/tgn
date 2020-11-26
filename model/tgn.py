@@ -10,6 +10,7 @@ from modules.message_function import get_message_function
 from modules.memory_updater import get_memory_updater
 from modules.embedding_module import get_embedding_module
 from model.time_encoding import TimeEncode
+from torch.nn import Linear
 
 
 class TGN(torch.nn.Module):
@@ -28,6 +29,7 @@ class TGN(torch.nn.Module):
 
     self.n_layers = n_layers
     self.neighbor_finder = neighbor_finder
+    self.edge_features_dim = edge_features.shape[1]
     self.device = device
     self.logger = logging.getLogger(__name__)
 
@@ -97,6 +99,7 @@ class TGN(torch.nn.Module):
     self.affinity_score = MergeLayer(self.n_node_features, self.n_node_features,
                                      self.n_node_features,
                                      1)
+    self.edge_feature_predictor = Linear(2 * self.n_node_features, self.edge_features_dim)
 
   def compute_temporal_embeddings(self, source_nodes, destination_nodes, negative_nodes, edge_times,
                                   edge_idxs, n_neighbors=20):
@@ -214,10 +217,11 @@ class TGN(torch.nn.Module):
     score = self.affinity_score(torch.cat([source_node_embedding, source_node_embedding], dim=0),
                                 torch.cat([destination_node_embedding,
                                            negative_node_embedding])).squeeze(dim=0)
+    predicted_edge_feature = self.edge_feature_predictor(torch.cat([source_node_embedding, destination_node_embedding], dim=0))
     pos_score = score[:n_samples]
     neg_score = score[n_samples:]
 
-    return pos_score.sigmoid(), neg_score.sigmoid(), updated_nodes
+    return pos_score.sigmoid(), neg_score.sigmoid(), predicted_edge_features, updated_nodes
 
   def update_memory(self, nodes, messages):
     # Aggregate messages for the same nodes

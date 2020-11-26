@@ -31,6 +31,7 @@ parser.add_argument('--lr', type=float, default=0.0001, help='Learning rate')
 parser.add_argument('--patience', type=int, default=5, help='Patience for early stopping')
 parser.add_argument('--n_runs', type=int, default=1, help='Number of runs')
 parser.add_argument('--drop_out', type=float, default=0.1, help='Dropout probability')
+parser.add_argument('--landa', type=float, default=0.1, help='landa is the loss parameter')
 parser.add_argument('--gpu', type=int, default=0, help='Idx for the gpu to use')
 parser.add_argument('--node_dim', type=int, default=100, help='Dimensions of the node embedding')
 parser.add_argument('--time_dim', type=int, default=100, help='Dimensions of the time embedding')
@@ -86,6 +87,7 @@ TIME_DIM = args.time_dim
 USE_MEMORY = args.use_memory
 MESSAGE_DIM = args.message_dim
 MEMORY_DIM = args.memory_dim
+LANDA = args.landa
 
 Path("./saved_models/").mkdir(parents=True, exist_ok=True)
 Path("./saved_checkpoints/").mkdir(parents=True, exist_ok=True)
@@ -162,6 +164,7 @@ for i in range(args.n_runs):
             use_source_embedding_in_message=args.use_source_embedding_in_message,
             dyrep=args.dyrep)
   criterion = torch.nn.BCELoss()
+  mse_criterion = torch.nn.MSELoss()
   optimizer = torch.optim.Adam(tgn.parameters(), lr=LEARNING_RATE)
   tgn = tgn.to(device)
 
@@ -222,7 +225,7 @@ for i in range(args.n_runs):
           neg_label = torch.zeros(size, dtype=torch.float, device=device)
 
         tgn = tgn.train()
-        pos_prob, neg_prob, updated_nodes = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
+        pos_prob, neg_prob, predicted_edge_features, updated_nodes = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
                                                             timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
         all_updated_nodes.extend(updated_nodes)
         all_updated_nodes = list(set(all_updated_nodes))
@@ -230,6 +233,7 @@ for i in range(args.n_runs):
         all_pos_prob[start_idx:end_idx] = pos_prob.detach().cpu().numpy()
 
         loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
+        loss += LANDA * mse_criterion(predicted_edge_features, edge_features[edge_idxs_batch])
 
       loss /= args.backprop_every
 
