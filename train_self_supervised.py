@@ -227,13 +227,13 @@ for i in range(args.n_runs):
         tgn = tgn.train()
         pos_prob, neg_prob, predicted_edge_features, updated_nodes = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
                                                             timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
-        all_updated_nodes.extend(updated_nodes)
+        all_updated_nodes.extend(updated_nodes.tolist())
         all_updated_nodes = list(set(all_updated_nodes))
 
-        all_pos_prob[start_idx:end_idx] = pos_prob.detach().cpu().numpy()
+        all_pos_prob[start_idx:end_idx] = pos_prob[:, 0].detach().cpu().numpy()
 
         loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
-        loss += LANDA * mse_criterion(predicted_edge_features, edge_features[edge_idxs_batch])
+        loss += LANDA * mse_criterion(predicted_edge_features, torch.tensor(edge_features[edge_idxs_batch], dtype=torch.float).to(device))
 
       loss /= args.backprop_every
 

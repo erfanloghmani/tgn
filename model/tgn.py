@@ -165,7 +165,7 @@ class TGN(torch.nn.Module):
         # new messages for them)
         self.update_memory(positives, self.memory.messages)
 
-        assert torch.allclose(memory[positives], self.memory.get_memory(positives), atol=1e-5), \
+        assert torch.allclose(memory[positives], self.memory.get_memory(positives), atol=5e-5), \
           "Something wrong in how the memory was updated"
 
         # Remove messages for the positives since we have already updated the memory using them
@@ -181,7 +181,7 @@ class TGN(torch.nn.Module):
                                                                               source_nodes,
                                                                               source_node_embedding,
                                                                               edge_times, edge_idxs)
-      updated_nodes = np.unique(np.concat(unique_sources, unique_destinations))
+      updated_nodes = np.unique(np.concatenate([unique_sources, unique_destinations]))
       if self.memory_update_at_start:
         self.memory.store_raw_messages(unique_sources, source_id_to_messages)
         self.memory.store_raw_messages(unique_destinations, destination_id_to_messages)
@@ -217,7 +217,7 @@ class TGN(torch.nn.Module):
     score = self.affinity_score(torch.cat([source_node_embedding, source_node_embedding], dim=0),
                                 torch.cat([destination_node_embedding,
                                            negative_node_embedding])).squeeze(dim=0)
-    predicted_edge_feature = self.edge_feature_predictor(torch.cat([source_node_embedding, destination_node_embedding], dim=0))
+    predicted_edge_features = self.edge_feature_predictor(torch.cat([source_node_embedding, destination_node_embedding], dim=1))
     pos_score = score[:n_samples]
     neg_score = score[n_samples:]
 
