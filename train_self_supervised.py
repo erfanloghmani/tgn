@@ -194,6 +194,7 @@ for i in range(args.n_runs):
     attns = []
 
     logger.info('start {} epoch'.format(epoch))
+    source_nodes_seen = torch.zeros(num_instance)
     for k in range(0, num_batch, args.backprop_every):
       loss = 0
       optimizer.zero_grad()
@@ -209,6 +210,7 @@ for i in range(args.n_runs):
         end_idx = min(num_instance, start_idx + BATCH_SIZE)
         sources_batch, destinations_batch = train_data.sources[start_idx:end_idx], \
                                             train_data.destinations[start_idx:end_idx]
+        source_nodes_seen_batch = source_nodes_seen[start_idx:end_idx]
         edge_idxs_batch = train_data.edge_idxs[start_idx: end_idx]
         timestamps_batch = train_data.timestamps[start_idx:end_idx]
 
@@ -221,9 +223,13 @@ for i in range(args.n_runs):
 
         tgn = tgn.train()
         pos_prob, neg_prob, attn_map = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
-                                                            timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
+                                                            source_nodes_seen_batch, timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
 
         loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
+
+        for source_batch_idx in sources_batch:
+            source_nodes_seen[source_batch_idx] += 1
+
 
       loss /= args.backprop_every
 

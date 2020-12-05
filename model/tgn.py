@@ -93,12 +93,28 @@ class TGN(torch.nn.Module):
                                                  use_memory=use_memory,
                                                  n_neighbors=self.n_neighbors)
 
+    self.embedding_module_2 = get_embedding_module(module_type=embedding_module_type,
+                                                   node_features=self.node_raw_features,
+                                                   edge_features=self.edge_raw_features,
+                                                   memory=self.memory,
+                                                   neighbor_finder=self.neighbor_finder,
+                                                   time_encoder=self.time_encoder,
+                                                   n_layers=2,
+                                                   n_node_features=self.n_node_features,
+                                                   n_edge_features=self.n_edge_features,
+                                                   n_time_features=self.n_node_features,
+                                                   embedding_dimension=self.embedding_dimension,
+                                                   device=self.device,
+                                                   n_heads=n_heads, dropout=dropout,
+                                                   use_memory=use_memory,
+                                                   n_neighbors=self.n_neighbors)
+
     # MLP to compute probability on an edge given two node embeddings
     self.affinity_score = MergeLayer(self.n_node_features, self.n_node_features,
                                      self.n_node_features,
                                      1)
 
-  def compute_temporal_embeddings(self, source_nodes, destination_nodes, negative_nodes, edge_times,
+  def compute_temporal_embeddings(self, source_nodes, destination_nodes, negative_nodes, source_nodes_seen, edge_times,
                                   edge_idxs, n_neighbors=20):
     """
     Compute temporal embeddings for sources, destinations, and negatively sampled destinations.
@@ -114,9 +130,17 @@ class TGN(torch.nn.Module):
     """
 
     n_samples = len(source_nodes)
-    nodes = np.concatenate([source_nodes, destination_nodes, negative_nodes])
+
+    seen_smaller_idxs = source_nodes_seen < 10
+    seen_greater_idxs = source_nodes_seen >= 10
+
+    seen_greater_idxs_size = seen_greater_idxs.int().sum()
+
+    nodes_g = np.concatenate([source_nodes[seen_greater_idxs], destination_nodes, negative_nodes])
+    nodes_s = np.concatenate([source_nodes[seen_smaller_idxs]])
     positives = np.concatenate([source_nodes, destination_nodes])
-    timestamps = np.concatenate([edge_times, edge_times, edge_times])
+    timestamps_g = np.concatenate([edge_times[seen_greater_idxs], edge_times, edge_times])
+    timestamps_s = np.concatenate([edge_times[seen_smaller_idxs]])
 
     memory = None
     time_diffs = None
@@ -141,20 +165,32 @@ class TGN(torch.nn.Module):
         negative_nodes].long()
       negative_time_diffs = (negative_time_diffs - self.mean_time_shift_dst) / self.std_time_shift_dst
 
-      time_diffs = torch.cat([source_time_diffs, destination_time_diffs, negative_time_diffs],
+      time_diffs_g = torch.cat([source_time_diffs[seen_greater_idxs], destination_time_diffs, negative_time_diffs],
+                             dim=0)
+      time_diffs_s = torch.cat([source_time_diffs[seen_smaller_idxs]],
                              dim=0)
 
     # Compute the embeddings using the embedding module
-    node_embedding, attn_map = self.embedding_module.compute_embedding(memory=memory,
-                                                             source_nodes=nodes,
-                                                             timestamps=timestamps,
-                                                             n_layers=self.n_layers,
-                                                             n_neighbors=n_neighbors,
-                                                             time_diffs=time_diffs)
+    node_embedding_1, attn_map_1 = self.embedding_module.compute_embedding(memory=memory,
+                                                                           source_nodes=nodes_g,
+                                                                           timestamps=timestamps_g,
+                                                                           n_layers=self.n_layers,
+                                                                           n_neighbors=n_neighbors,
+                                                                           time_diffs=time_diffs_g)
 
-    source_node_embedding = node_embedding[:n_samples]
-    destination_node_embedding = node_embedding[n_samples: 2 * n_samples]
-    negative_node_embedding = node_embedding[2 * n_samples:]
+    node_embedding_2, attn_map_2 = self.embedding_module_2.compute_embedding(memory=memory,
+                                                                             source_nodes=nodes_s,
+                                                                             timestamps=timestamps_s,
+                                                                             n_layers=2,
+                                                                             n_neighbors=n_neighbors,
+                                                                             time_diffs=time_diffs_s)
+    all_node_embedding = torch.zeros((n_samples, node_embedding_1.shape[1]))
+    all_node_embedding[seen_greater_idxs] = node_embedding_1[:seen_greater_idxs_size]
+    all_node_embedding[seen_smaller_idxs] = node_embedding_2
+
+    source_node_embedding = all_node_embedding
+    destination_node_embedding = node_embedding_1[seen_greater_idxs_size: seen_greater_idxs_size + n_samples]
+    negative_node_embedding = node_embedding_1[seen_greater_idxs_size + n_samples:]
 
     if self.use_memory:
       if self.memory_update_at_start:
