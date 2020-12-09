@@ -136,11 +136,11 @@ class TGN(torch.nn.Module):
 
     seen_greater_idxs_size = seen_greater_idxs.int().sum()
 
-    nodes_g = np.concatenate([source_nodes[seen_greater_idxs], destination_nodes, negative_nodes])
-    nodes_s = np.concatenate([source_nodes[seen_smaller_idxs]])
+    nodes_g = np.concatenate([source_nodes[seen_greater_idxs.cpu()], destination_nodes, negative_nodes])
+    nodes_s = np.concatenate([source_nodes[seen_smaller_idxs.cpu()]])
     positives = np.concatenate([source_nodes, destination_nodes])
-    timestamps_g = np.concatenate([edge_times[seen_greater_idxs], edge_times, edge_times])
-    timestamps_s = np.concatenate([edge_times[seen_smaller_idxs]])
+    timestamps_g = np.concatenate([edge_times[seen_greater_idxs.cpu()], edge_times, edge_times])
+    timestamps_s = np.concatenate([edge_times[seen_smaller_idxs.cpu()]])
 
     memory = None
     time_diffs = None
@@ -184,7 +184,7 @@ class TGN(torch.nn.Module):
                                                                              n_layers=2,
                                                                              n_neighbors=n_neighbors,
                                                                              time_diffs=time_diffs_s)
-    all_node_embedding = torch.zeros((n_samples, node_embedding_1.shape[1]))
+    all_node_embedding = torch.zeros((n_samples, node_embedding_1.shape[1]), device='cuda:0')
     all_node_embedding[seen_greater_idxs] = node_embedding_1[:seen_greater_idxs_size]
     all_node_embedding[seen_smaller_idxs] = node_embedding_2
 
@@ -226,7 +226,7 @@ class TGN(torch.nn.Module):
         destination_node_embedding = memory[destination_nodes]
         negative_node_embedding = memory[negative_nodes]
 
-    return source_node_embedding, destination_node_embedding, negative_node_embedding, attn_map
+    return source_node_embedding, destination_node_embedding, negative_node_embedding, attn_map_2
 
   def compute_edge_probabilities(self, source_nodes, destination_nodes, negative_nodes, source_nodes_seen, edge_times,
                                  edge_idxs, n_neighbors=20):

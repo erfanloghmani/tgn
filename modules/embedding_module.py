@@ -98,7 +98,7 @@ class GraphEmbedding(EmbeddingModule):
       source_node_features = memory[source_nodes, :] + source_node_features
 
     if n_layers == 0:
-      return source_node_features
+      return source_node_features, None
     else:
 
       neighbors, edge_idxs, edge_times = self.neighbor_finder.get_temporal_neighbor(
@@ -114,7 +114,7 @@ class GraphEmbedding(EmbeddingModule):
 
       edge_deltas_torch = torch.from_numpy(edge_deltas).float().to(self.device)
       neighbors = neighbors.flatten()
-      neighbor_embeddings = self.compute_embedding(memory,
+      neighbor_embeddings, _ = self.compute_embedding(memory,
                                                    neighbors,
                                                    np.repeat(timestamps, n_neighbors),
                                                    n_layers=n_layers - 1,

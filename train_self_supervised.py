@@ -194,7 +194,7 @@ for i in range(args.n_runs):
     attns = []
 
     logger.info('start {} epoch'.format(epoch))
-    source_nodes_seen = torch.zeros(num_instance)
+    source_nodes_seen = torch.zeros(num_instance, device=device)
     for k in range(0, num_batch, args.backprop_every):
       loss = 0
       optimizer.zero_grad()
