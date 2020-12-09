@@ -228,7 +228,7 @@ class TGN(torch.nn.Module):
 
     return source_node_embedding, destination_node_embedding, negative_node_embedding, attn_map
 
-  def compute_edge_probabilities(self, source_nodes, destination_nodes, negative_nodes, edge_times,
+  def compute_edge_probabilities(self, source_nodes, destination_nodes, negative_nodes, source_nodes_seen, edge_times,
                                  edge_idxs, n_neighbors=20):
     """
     Compute probabilities for edges between sources and destination and between sources and
@@ -244,7 +244,7 @@ class TGN(torch.nn.Module):
     """
     n_samples = len(source_nodes)
     source_node_embedding, destination_node_embedding, negative_node_embedding, attn_map = self.compute_temporal_embeddings(
-      source_nodes, destination_nodes, negative_nodes, edge_times, edge_idxs, n_neighbors)
+      source_nodes, destination_nodes, negative_nodes, source_nodes_seen, edge_times, edge_idxs, n_neighbors)
 
     score = self.affinity_score(torch.cat([source_node_embedding, source_node_embedding], dim=0),
                                 torch.cat([destination_node_embedding,
