@@ -258,7 +258,7 @@ for i in range(args.n_runs):
     val_ap, val_auc, pos_prob = eval_edge_prediction(model=tgn,
                                                             negative_edge_sampler=val_rand_sampler,
                                                             data=val_data,
-                                                            n_neighbors=NUM_NEIGHBORS)
+                                                            n_neighbors=NUM_NEIGHBORS, source_nodes_seen=source_nodes_seen)
     if USE_MEMORY:
       val_memory_backup = tgn.memory.backup_memory()
       # Restore memory we had at the end of training to be used when validating on new nodes.
@@ -270,7 +270,7 @@ for i in range(args.n_runs):
     nn_val_ap, nn_val_auc, nn_pos_prob = eval_edge_prediction(model=tgn,
                                                                         negative_edge_sampler=val_rand_sampler,
                                                                         data=new_node_val_data,
-                                                                        n_neighbors=NUM_NEIGHBORS)
+                                                                        n_neighbors=NUM_NEIGHBORS, source_nodes_seen=source_nodes_seen)
 
     if USE_MEMORY:
       # Restore memory we had at the end of validation
