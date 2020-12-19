@@ -102,15 +102,22 @@ class RandomWalkEdgeSampler(object):
 
   def sample(self, src_list, start_idx):
     all_nodes = []
+    count_nfound = 0
     for src_idx in src_list:
-      neighbors = self.neighbor_finder.find_before(src_idx, start_idx)
+      neighbors = self.neighbor_finder.find_before(src_idx, start_idx)[0]
+      if neighbors.shape[0] == 0:
+        found_node = np.random.randint(0, len(self.dst_list), 1)[0]
+        count_nfound += 1
+        all_nodes.append(found_node)
+        continue
       n_walk = np.random.randint(2, 10, 1)[0]
       found_node = src_idx
       while (n_walk > 0 or found_node in neighbors):
-        cur_neighbors = self.neighbor_finder.find_before(found_node, start_idx)
+        cur_neighbors = self.neighbor_finder.find_before(found_node, start_idx)[0]
         found_node = random.choice(cur_neighbors)
         n_walk -= 1
       all_nodes.append(found_node)
+    # print(count_nfound)
     return all_nodes
 
   def reset_random_state(self):

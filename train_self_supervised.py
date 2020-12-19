@@ -216,21 +216,20 @@ for i in range(args.n_runs):
             _, negatives_batch = train_rand_sampler.sample(size)
         else:
             negatives_batch = train_random_walk_sampler.sample(sources_batch, start_idx)
-        print(negatives_batch)
 
         with torch.no_grad():
           pos_label = torch.ones(size, dtype=torch.float, device=device)
           neg_label = torch.zeros(size, dtype=torch.float, device=device)
 
         tgn = tgn.train()
-        # pos_prob, neg_prob = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
-                                                            # timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
+        pos_prob, neg_prob = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
+                                                            timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
 
-        # loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
+        loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
 
-      # loss /= args.backprop_every
+      loss /= args.backprop_every
 
-      # loss.backward()
+      loss.backward()
       optimizer.step()
       m_loss.append(loss.item())
 
