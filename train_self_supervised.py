@@ -10,7 +10,7 @@ from pathlib import Path
 
 from evaluation.evaluation import eval_edge_prediction
 from model.tgn import TGN
-from utils.utils import EarlyStopMonitor, RandEdgeSampler, get_neighbor_finder
+from utils.utils import EarlyStopMonitor, RandEdgeSampler, RandomWalkEdgeSampler, get_neighbor_finder
 from utils.data_processing import get_data, compute_time_statistics
 
 torch.manual_seed(0)
@@ -122,6 +122,7 @@ full_ngh_finder = get_neighbor_finder(full_data, args.uniform)
 # Initialize negative samplers. Set seeds for validation and testing so negatives are the same
 # across different runs
 # NB: in the inductive setting, negatives are sampled only amongst other new nodes
+train_random_walk_sampler = RandomWalkEdgeSampler(train_data.sources, train_data.destinations, neighbor_finder=train_ngh_finder)
 train_rand_sampler = RandEdgeSampler(train_data.sources, train_data.destinations)
 val_rand_sampler = RandEdgeSampler(full_data.sources, full_data.destinations, seed=0)
 nn_val_rand_sampler = RandEdgeSampler(new_node_val_data.sources, new_node_val_data.destinations,
@@ -210,21 +211,26 @@ for i in range(args.n_runs):
         timestamps_batch = train_data.timestamps[start_idx:end_idx]
 
         size = len(sources_batch)
-        _, negatives_batch = train_rand_sampler.sample(size)
+
+        if start_idx == 0:
+            _, negatives_batch = train_rand_sampler.sample(size)
+        else:
+            negatives_batch = train_random_walk_sampler.sample(sources_batch, start_idx)
+        print(negatives_batch)
 
         with torch.no_grad():
           pos_label = torch.ones(size, dtype=torch.float, device=device)
           neg_label = torch.zeros(size, dtype=torch.float, device=device)
 
         tgn = tgn.train()
-        pos_prob, neg_prob = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
-                                                            timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
+        # pos_prob, neg_prob = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
+                                                            # timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
 
-        loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
+        # loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
 
-      loss /= args.backprop_every
+      # loss /= args.backprop_every
 
-      loss.backward()
+      # loss.backward()
       optimizer.step()
       m_loss.append(loss.item())
 

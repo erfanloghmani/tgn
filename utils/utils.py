@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import random
 
 
 class MergeLayer(torch.nn.Module):
@@ -83,6 +84,34 @@ class RandEdgeSampler(object):
       src_index = self.random_state.randint(0, len(self.src_list), size)
       dst_index = self.random_state.randint(0, len(self.dst_list), size)
     return self.src_list[src_index], self.dst_list[dst_index]
+
+  def reset_random_state(self):
+    self.random_state = np.random.RandomState(self.seed)
+
+
+class RandomWalkEdgeSampler(object):
+  def __init__(self, src_list, dst_list, seed=None, neighbor_finder=None):
+    self.seed = None
+    self.src_list = np.unique(src_list)
+    self.dst_list = np.unique(dst_list)
+    self.neighbor_finder = neighbor_finder
+
+    if seed is not None:
+      self.seed = seed
+      self.random_state = np.random.RandomState(self.seed)
+
+  def sample(self, src_list, start_idx):
+    all_nodes = []
+    for src_idx in src_list:
+      neighbors = self.neighbor_finder.find_before(src_idx, start_idx)
+      n_walk = np.random.randint(2, 10, 1)[0]
+      found_node = src_idx
+      while (n_walk > 0 or found_node in neighbors):
+        cur_neighbors = self.neighbor_finder.find_before(found_node, start_idx)
+        found_node = random.choice(cur_neighbors)
+        n_walk -= 1
+      all_nodes.append(found_node)
+    return all_nodes
 
   def reset_random_state(self):
     self.random_state = np.random.RandomState(self.seed)
