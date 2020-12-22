@@ -45,6 +45,53 @@ def eval_edge_prediction(model, negative_edge_sampler, data, n_neighbors, batch_
 
   return np.mean(val_ap), np.mean(val_auc)
 
+def eval_edge_prediction_jodie(model,
+                               data,
+                               all_destinations,
+                               n_neighbors,
+                               batch_size=200):
+    # Ensures the random sampler uses a seed for evaluation (i.e. we sample always the same
+    # negatives for validation / test set)
+
+    val_ranks = []
+    with torch.no_grad():
+        model = model.eval()
+        # While usually the test batch size is as big as it fits in memory, here we keep it the same
+        # size as the training batch size, since it allows the memory to be updated more frequently,
+        # and later test batches to access information from interactions in previous test batches
+        # through the memory
+        TEST_BATCH_SIZE = batch_size
+        num_test_instance = len(data.sources)
+        num_test_batch = math.ceil(num_test_instance / TEST_BATCH_SIZE)
+
+        for k in range(num_test_batch):
+            s_idx = k * TEST_BATCH_SIZE
+            e_idx = min(num_test_instance, s_idx + TEST_BATCH_SIZE)
+            sources_batch = data.sources[s_idx:e_idx]
+            destinations_batch = data.destinations[s_idx:e_idx]
+            next_destinations_batch = data.next_destination[s_idx:e_idx]
+            timestamps_batch = data.timestamps[s_idx:e_idx]
+            edge_idxs_batch = data.edge_idxs[s_idx:e_idx]
+
+            size = len(sources_batch)
+
+            pred_next_destination_emb, next_destination_emb = model.predict_next_destination(
+                sources_batch, destinations_batch, next_destinations_batch,
+                timestamps_batch, edge_idxs_batch, n_neighbors)
+
+            destinations_embs = model.memory.get_memory(all_destinations)
+            euclidean_distances = nn.PairwiseDistance()(pred_next_destination_emb.repeat_interleave(repeats=destinations_embs.shape[0], dim=0),
+                                                        destinations_embs.repeat(size, 1))
+
+            # CALCULATE RANK OF THE TRUE ITEM AMONG ALL ITEMS
+            true_item_distance = euclidean_distances[next_destinations_batch + np.arange(size) * destinations_embs.shape[0]]
+            euclidean_distances = euclidean_distances.reshape(destinations_embs.shape[0], size)
+            euclidean_distances_smaller = (euclidean_distances < true_item_distance).data.cpu().numpy()
+            true_item_rank = euclidean_distances_smaller.sum(axis=0) + 1
+
+            val_ranks.extend(true_item_rank.tolist())
+
+    return np.mean(val_ranks)
 
 def eval_node_classification(tgn, decoder, data, edge_idxs, batch_size, n_neighbors):
   pred_prob = np.zeros(len(data.sources))

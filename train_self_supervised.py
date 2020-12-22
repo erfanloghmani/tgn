@@ -8,7 +8,7 @@ import numpy as np
 import pickle
 from pathlib import Path
 
-from evaluation.evaluation import eval_edge_prediction
+from evaluation.evaluation import eval_edge_prediction_jodie
 from model.tgn import TGN
 from utils.utils import EarlyStopMonitor, RandEdgeSampler, get_neighbor_finder
 from utils.data_processing import get_data, compute_time_statistics
@@ -115,6 +115,8 @@ new_node_test_data = get_data(DATA,
 
 num_users = len(set(full_data.sources))
 num_items = len(set(full_data.destinations)) + 1
+
+all_items = list(set(full_data.destinations))
 
 user_embedding_static = Variable(torch.eye(num_users).to(device))  # one-hot vectors for static embeddings
 item_embedding_static = Variable(torch.eye(num_items).to(device))  # one-hot vectors for static embeddings
@@ -261,9 +263,10 @@ for i in range(args.n_runs):
       # validation on unseen nodes
       train_memory_backup = tgn.memory.backup_memory()
 
-    val_ap, val_auc = eval_edge_prediction(model=tgn,
+    val_ap, val_auc = eval_edge_prediction_jodie(model=tgn,
                                                             negative_edge_sampler=val_rand_sampler,
                                                             data=val_data,
+                                                            all_destinations=all_items,
                                                             n_neighbors=NUM_NEIGHBORS)
     if USE_MEMORY:
       val_memory_backup = tgn.memory.backup_memory()
@@ -273,9 +276,10 @@ for i in range(args.n_runs):
       tgn.memory.restore_memory(train_memory_backup)
 
     # Validate on unseen nodes
-    nn_val_ap, nn_val_auc = eval_edge_prediction(model=tgn,
+    nn_val_ap, nn_val_auc = eval_edge_prediction_jodie(model=tgn,
                                                                         negative_edge_sampler=val_rand_sampler,
                                                                         data=new_node_val_data,
+                                                                        all_destinations=all_items,
                                                                         n_neighbors=NUM_NEIGHBORS)
 
     if USE_MEMORY:
@@ -325,18 +329,20 @@ for i in range(args.n_runs):
 
   ### Test
   tgn.embedding_module.neighbor_finder = full_ngh_finder
-  test_ap, test_auc = eval_edge_prediction(model=tgn,
+  test_ap, test_auc = eval_edge_prediction_jodie(model=tgn,
                                                               negative_edge_sampler=test_rand_sampler,
                                                               data=test_data,
+                                                              all_destinations=all_items,
                                                               n_neighbors=NUM_NEIGHBORS)
 
   if USE_MEMORY:
     tgn.memory.restore_memory(val_memory_backup)
 
   # Test on unseen nodes
-  nn_test_ap, nn_test_auc = eval_edge_prediction(model=tgn,
+  nn_test_ap, nn_test_auc = eval_edge_prediction_jodie(model=tgn,
                                                                           negative_edge_sampler=nn_test_rand_sampler,
                                                                           data=new_node_test_data,
+                                                                          all_destinations=all_items,
                                                                           n_neighbors=NUM_NEIGHBORS)
 
   logger.info(
