@@ -118,9 +118,6 @@ num_items = len(set(full_data.destinations)) + 1
 
 all_items = list(set(full_data.destinations))
 
-user_embedding_static = Variable(torch.eye(num_users).to(device))  # one-hot vectors for static embeddings
-item_embedding_static = Variable(torch.eye(num_items).to(device))  # one-hot vectors for static embeddings
-
 # Initialize training neighbor finder to retrieve temporal graph
 train_ngh_finder = get_neighbor_finder(train_data, args.uniform)
 
@@ -143,6 +140,10 @@ nn_test_rand_sampler = RandEdgeSampler(new_node_test_data.sources,
 device_string = 'cuda:{}'.format(GPU) if torch.cuda.is_available() else 'cpu'
 device = torch.device(device_string)
 
+user_embedding_static = torch.autograd.Variable(torch.eye(num_users).to(device))  # one-hot vectors for static embeddings
+item_embedding_static = torch.autograd.Variable(torch.eye(num_items).to(device))  # one-hot vectors for static embeddings
+
+
 # Compute time statistics
 mean_time_shift_src, std_time_shift_src, mean_time_shift_dst, std_time_shift_dst = \
   compute_time_statistics(full_data.sources, full_data.destinations, full_data.timestamps)
@@ -155,6 +156,8 @@ for i in range(args.n_runs):
   tgn = TGN(neighbor_finder=train_ngh_finder, node_features=node_features,
             edge_features=edge_features, device=device,
             n_layers=NUM_LAYER,
+            n_users=num_users,
+            n_items=num_items,
             n_heads=NUM_HEADS, dropout=DROP_OUT, use_memory=USE_MEMORY,
             message_dimension=MESSAGE_DIM, memory_dimension=MEMORY_DIM,
             memory_update_at_start=not args.memory_update_at_end,
@@ -217,7 +220,7 @@ for i in range(args.n_runs):
                                             train_data.next_destination[start_idx:end_idx]
 
         user_static_emb_batch = user_embedding_static[sources_batch]
-        item_static_emb_batch = item_embedding_static[destinations_batch - n_users]
+        item_static_emb_batch = item_embedding_static[destinations_batch - num_users]
 
         edge_idxs_batch = train_data.edge_idxs[start_idx: end_idx]
         timestamps_batch = train_data.timestamps[start_idx:end_idx]
@@ -231,7 +234,7 @@ for i in range(args.n_runs):
 
         tgn = tgn.train()
         exp = tgn.memory.get_memory(next_d_batch)
-        exp_static = item_embedding_static[next_d_batch - n_users]
+        exp_static = item_embedding_static[next_d_batch - num_users]
         exp_full = torch.cat([exp, exp_static], dim=1)
 
         pred = tgn.predict_next_destination(sources_batch, user_static_emb_batch, destinations_batch, item_static_emb_batch, next_d_batch,
@@ -264,7 +267,6 @@ for i in range(args.n_runs):
       train_memory_backup = tgn.memory.backup_memory()
 
     val_ap, val_auc = eval_edge_prediction_jodie(model=tgn,
-                                                            negative_edge_sampler=val_rand_sampler,
                                                             data=val_data,
                                                             all_destinations=all_items,
                                                             n_neighbors=NUM_NEIGHBORS)
@@ -277,7 +279,6 @@ for i in range(args.n_runs):
 
     # Validate on unseen nodes
     nn_val_ap, nn_val_auc = eval_edge_prediction_jodie(model=tgn,
-                                                                        negative_edge_sampler=val_rand_sampler,
                                                                         data=new_node_val_data,
                                                                         all_destinations=all_items,
                                                                         n_neighbors=NUM_NEIGHBORS)
@@ -330,7 +331,6 @@ for i in range(args.n_runs):
   ### Test
   tgn.embedding_module.neighbor_finder = full_ngh_finder
   test_ap, test_auc = eval_edge_prediction_jodie(model=tgn,
-                                                              negative_edge_sampler=test_rand_sampler,
                                                               data=test_data,
                                                               all_destinations=all_items,
                                                               n_neighbors=NUM_NEIGHBORS)
@@ -340,7 +340,6 @@ for i in range(args.n_runs):
 
   # Test on unseen nodes
   nn_test_ap, nn_test_auc = eval_edge_prediction_jodie(model=tgn,
-                                                                          negative_edge_sampler=nn_test_rand_sampler,
                                                                           data=new_node_test_data,
                                                                           all_destinations=all_items,
                                                                           n_neighbors=NUM_NEIGHBORS)

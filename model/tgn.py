@@ -100,7 +100,7 @@ class TGN(torch.nn.Module):
     self.affinity_score = MergeLayer(self.n_node_features, self.n_node_features,
                                      self.n_node_features,
                                      1)
-    self.predict_next_dest_layer = Linear(self.n_node_features * 2 + self.n_users + self.n_items,
+    self.predict_next_dest_layer = torch.nn.Linear(self.n_node_features * 2 + self.n_users + self.n_items,
                                           self.n_node_features + self.n_items)
 
   def compute_temporal_embeddings(self, source_nodes, destination_nodes, negative_nodes, edge_times,
