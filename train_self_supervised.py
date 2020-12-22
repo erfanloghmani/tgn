@@ -267,6 +267,9 @@ for i in range(args.n_runs):
       train_memory_backup = tgn.memory.backup_memory()
 
     val_ap, val_auc = eval_edge_prediction_jodie(model=tgn,
+                                                            num_users=num_users,
+                                                            user_embedding_static=user_embedding_static,
+                                                            item_embedding_static=item_embedding_static,
                                                             data=val_data,
                                                             all_destinations=all_items,
                                                             n_neighbors=NUM_NEIGHBORS)
@@ -279,6 +282,9 @@ for i in range(args.n_runs):
 
     # Validate on unseen nodes
     nn_val_ap, nn_val_auc = eval_edge_prediction_jodie(model=tgn,
+                                                                        num_users=num_users,
+                                                                        user_embedding_static=user_embedding_static,
+                                                                        item_embedding_static=item_embedding_static,
                                                                         data=new_node_val_data,
                                                                         all_destinations=all_items,
                                                                         n_neighbors=NUM_NEIGHBORS)
@@ -331,6 +337,9 @@ for i in range(args.n_runs):
   ### Test
   tgn.embedding_module.neighbor_finder = full_ngh_finder
   test_ap, test_auc = eval_edge_prediction_jodie(model=tgn,
+                                                              num_users=num_users,
+                                                              user_embedding_static=user_embedding_static,
+                                                              item_embedding_static=item_embedding_static,
                                                               data=test_data,
                                                               all_destinations=all_items,
                                                               n_neighbors=NUM_NEIGHBORS)
@@ -340,6 +349,9 @@ for i in range(args.n_runs):
 
   # Test on unseen nodes
   nn_test_ap, nn_test_auc = eval_edge_prediction_jodie(model=tgn,
+                                                                          num_users=num_users,
+                                                                          user_embedding_static=user_embedding_static,
+                                                                          item_embedding_static=item_embedding_static,
                                                                           data=new_node_test_data,
                                                                           all_destinations=all_items,
                                                                           n_neighbors=NUM_NEIGHBORS)
