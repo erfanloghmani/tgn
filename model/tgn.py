@@ -13,7 +13,7 @@ from model.time_encoding import TimeEncode
 
 
 class TGN(torch.nn.Module):
-  def __init__(self, neighbor_finder, node_features, edge_features, device, n_layers=2,
+  def __init__(self, neighbor_finder, node_features, edge_features, device, n_users, n_items, n_layers=2,
                n_heads=2, dropout=0.1, use_memory=False,
                memory_update_at_start=True, message_dimension=100,
                memory_dimension=500, embedding_module_type="graph_attention",
@@ -25,6 +25,9 @@ class TGN(torch.nn.Module):
                use_source_embedding_in_message=False,
                dyrep=False):
     super(TGN, self).__init__()
+
+    self.n_users = n_users
+    self.n_items = n_items
 
     self.n_layers = n_layers
     self.neighbor_finder = neighbor_finder
@@ -97,9 +100,11 @@ class TGN(torch.nn.Module):
     self.affinity_score = MergeLayer(self.n_node_features, self.n_node_features,
                                      self.n_node_features,
                                      1)
+    self.predict_next_dest_layer = Linear(self.n_node_features * 2 + self.n_users + self.n_items,
+                                          self.n_node_features + self.n_items)
 
   def compute_temporal_embeddings(self, source_nodes, destination_nodes, negative_nodes, edge_times,
-                                  edge_idxs, n_neighbors=20):
+                                  edge_idxs, n_neighbors=20, use_negs=True):
     """
     Compute temporal embeddings for sources, destinations, and negatively sampled destinations.
 
@@ -114,9 +119,13 @@ class TGN(torch.nn.Module):
     """
 
     n_samples = len(source_nodes)
-    nodes = np.concatenate([source_nodes, destination_nodes, negative_nodes])
+    if use_negs:
+        nodes = np.concatenate([source_nodes, destination_nodes, negative_nodes])
+        timestamps = np.concatenate([edge_times, edge_times, edge_times])
+    else:
+        nodes = np.concatenate([source_nodes, destination_nodes])
+        timestamps = np.concatenate([edge_times, edge_times])
     positives = np.concatenate([source_nodes, destination_nodes])
-    timestamps = np.concatenate([edge_times, edge_times, edge_times])
 
     memory = None
     time_diffs = None
@@ -137,12 +146,15 @@ class TGN(torch.nn.Module):
       destination_time_diffs = torch.LongTensor(edge_times).to(self.device) - last_update[
         destination_nodes].long()
       destination_time_diffs = (destination_time_diffs - self.mean_time_shift_dst) / self.std_time_shift_dst
-      negative_time_diffs = torch.LongTensor(edge_times).to(self.device) - last_update[
-        negative_nodes].long()
-      negative_time_diffs = (negative_time_diffs - self.mean_time_shift_dst) / self.std_time_shift_dst
+      if use_negs:
+        negative_time_diffs = torch.LongTensor(edge_times).to(self.device) - last_update[
+          negative_nodes].long()
+        negative_time_diffs = (negative_time_diffs - self.mean_time_shift_dst) / self.std_time_shift_dst
 
-      time_diffs = torch.cat([source_time_diffs, destination_time_diffs, negative_time_diffs],
-                             dim=0)
+        time_diffs = torch.cat([source_time_diffs, destination_time_diffs, negative_time_diffs],
+                               dim=0)
+      else:
+        time_diffs = torch.cat([source_time_diffs, destination_time_diffs], dim=0)
 
     # Compute the embeddings using the embedding module
     node_embedding = self.embedding_module.compute_embedding(memory=memory,
@@ -154,7 +166,10 @@ class TGN(torch.nn.Module):
 
     source_node_embedding = node_embedding[:n_samples]
     destination_node_embedding = node_embedding[n_samples: 2 * n_samples]
-    negative_node_embedding = node_embedding[2 * n_samples:]
+    if use_negs:
+      negative_node_embedding = node_embedding[2 * n_samples:]
+    else:
+      negative_node_embedding = None
 
     if self.use_memory:
       if self.memory_update_at_start:
@@ -217,6 +232,34 @@ class TGN(torch.nn.Module):
     neg_score = score[n_samples:]
 
     return pos_score.sigmoid(), neg_score.sigmoid()
+
+  def predict_next_destination(self,
+                               source_nodes,
+                               source_static_emb,
+                               destination_nodes,
+                               dest_static_emb,
+                               next_destination_nodes,
+                               edge_times,
+                               edge_idxs,
+                               n_neighbors=20):
+    """
+    Predict next destination for each source.
+
+    :param source_nodes [batch_size]: source ids
+    :param destination_nodes [batch_size]: destination ids
+    :param next_destination_nodes [batch_size]: next_destination ids
+    :param edge_times [batch_size]: timestamp of interaction
+    :param edge_idxs [batch_size]: index of interaction
+    :param n_neighbors [scalar]: number of temporal neighbor to consider in each convolutional
+    layer
+    :return: Predicted destination embedding
+    """
+    source_node_embedding, destination_node_embedding, negative_node_embedding = self.compute_temporal_embeddings(
+        source_nodes, destination_nodes, None, edge_times,
+        edge_idxs, n_neighbors, use_negs=False)
+
+    pred = self.predict_next_dest_layer(torch.cat([source_node_embedding, source_static_emb, destination_node_embedding, dest_static_emb], dim=1))
+    return pred
 
   def update_memory(self, nodes, messages):
     # Aggregate messages for the same nodes

@@ -113,6 +113,12 @@ node_features, edge_features, full_data, train_data, val_data, test_data, new_no
 new_node_test_data = get_data(DATA,
                               different_new_nodes_between_val_and_test=args.different_new_nodes, randomize_features=args.randomize_features)
 
+num_users = len(set(full_data.sources))
+num_items = len(set(full_data.destinations)) + 1
+
+user_embedding_static = Variable(torch.eye(num_users).to(device))  # one-hot vectors for static embeddings
+item_embedding_static = Variable(torch.eye(num_items).to(device))  # one-hot vectors for static embeddings
+
 # Initialize training neighbor finder to retrieve temporal graph
 train_ngh_finder = get_neighbor_finder(train_data, args.uniform)
 
@@ -160,7 +166,7 @@ for i in range(args.n_runs):
             use_destination_embedding_in_message=args.use_destination_embedding_in_message,
             use_source_embedding_in_message=args.use_source_embedding_in_message,
             dyrep=args.dyrep)
-  criterion = torch.nn.BCELoss()
+  criterion = torch.nn.MSELoss()
   optimizer = torch.optim.Adam(tgn.parameters(), lr=LEARNING_RATE)
   tgn = tgn.to(device)
 
@@ -204,8 +210,13 @@ for i in range(args.n_runs):
 
         start_idx = batch_idx * BATCH_SIZE
         end_idx = min(num_instance, start_idx + BATCH_SIZE)
-        sources_batch, destinations_batch = train_data.sources[start_idx:end_idx], \
-                                            train_data.destinations[start_idx:end_idx]
+        sources_batch, destinations_batch, next_d_batch = train_data.sources[start_idx:end_idx], \
+                                            train_data.destinations[start_idx:end_idx], \
+                                            train_data.next_destination[start_idx:end_idx]
+
+        user_static_emb_batch = user_embedding_static[sources_batch]
+        item_static_emb_batch = item_embedding_static[destinations_batch - n_users]
+
         edge_idxs_batch = train_data.edge_idxs[start_idx: end_idx]
         timestamps_batch = train_data.timestamps[start_idx:end_idx]
 
@@ -217,10 +228,15 @@ for i in range(args.n_runs):
           neg_label = torch.zeros(size, dtype=torch.float, device=device)
 
         tgn = tgn.train()
-        pos_prob, neg_prob = tgn.compute_edge_probabilities(sources_batch, destinations_batch, negatives_batch,
-                                                            timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
+        exp = tgn.memory.get_memory(next_d_batch)
+        exp_static = item_embedding_static[next_d_batch - n_users]
+        exp_full = torch.cat([exp, exp_static], dim=1)
 
-        loss += criterion(pos_prob.squeeze(), pos_label) + criterion(neg_prob.squeeze(), neg_label)
+        pred = tgn.predict_next_destination(sources_batch, user_static_emb_batch, destinations_batch, item_static_emb_batch, next_d_batch,
+                                            timestamps_batch, edge_idxs_batch, NUM_NEIGHBORS)
+
+
+        loss += criterion(exp_full, pred)
 
       loss /= args.backprop_every
 

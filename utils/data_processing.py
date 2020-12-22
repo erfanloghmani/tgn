@@ -4,7 +4,7 @@ import pandas as pd
 
 
 class Data:
-  def __init__(self, sources, destinations, timestamps, edge_idxs, labels):
+  def __init__(self, sources, destinations, timestamps, edge_idxs, labels, next_destination=None):
     self.sources = sources
     self.destinations = destinations
     self.timestamps = timestamps
@@ -13,6 +13,7 @@ class Data:
     self.n_interactions = len(sources)
     self.unique_nodes = set(sources) | set(destinations)
     self.n_unique_nodes = len(self.unique_nodes)
+    self.next_destination = next_destination
 
 
 def get_data_node_classification(dataset_name, use_validation=False):
@@ -66,12 +67,19 @@ def get_data(dataset_name, different_new_nodes_between_val_and_test=False, rando
   labels = graph_df.label.values
   timestamps = graph_df.ts.values
 
-  full_data = Data(sources, destinations, timestamps, edge_idxs, labels)
+  node_set = set(sources) | set(destinations)
+  n_total_unique_nodes = len(node_set) + 1
+
+  source_next_dest_sequence = []
+  source_latest_dest = defaultdict(lambda: n_total_unique_nodes - 1)
+  for cnt, source in reversed(list(enumerate(sources))):
+    source_next_dest_sequence.append(source_latest_dest[source])
+    source_latest_dest[source] = destinations[cnt]
+  source_next_dest_sequence = np.array(source_next_dest_sequence)[::-1]
+
+  full_data = Data(sources, destinations, timestamps, edge_idxs, labels, source_next_dest_sequence)
 
   random.seed(2020)
-
-  node_set = set(sources) | set(destinations)
-  n_total_unique_nodes = len(node_set)
 
   # Compute nodes which appear at test time
   test_node_set = set(sources[timestamps > val_time]).union(
@@ -93,7 +101,7 @@ def get_data(dataset_name, different_new_nodes_between_val_and_test=False, rando
   train_mask = np.logical_and(timestamps <= val_time, observed_edges_mask)
 
   train_data = Data(sources[train_mask], destinations[train_mask], timestamps[train_mask],
-                    edge_idxs[train_mask], labels[train_mask])
+                    edge_idxs[train_mask], labels[train_mask], source_next_dest_sequence[train_mask])
 
   # define the new nodes sets for testing inductiveness of the model
   train_node_set = set(train_data.sources).union(train_data.destinations)
@@ -124,19 +132,19 @@ def get_data(dataset_name, different_new_nodes_between_val_and_test=False, rando
 
   # validation and test with all edges
   val_data = Data(sources[val_mask], destinations[val_mask], timestamps[val_mask],
-                  edge_idxs[val_mask], labels[val_mask])
+                  edge_idxs[val_mask], labels[val_mask], source_next_dest_sequence[val_mask])
 
   test_data = Data(sources[test_mask], destinations[test_mask], timestamps[test_mask],
-                   edge_idxs[test_mask], labels[test_mask])
+                   edge_idxs[test_mask], labels[test_mask], source_next_dest_sequence[test_mask])
 
   # validation and test with edges that at least has one new node (not in training set)
   new_node_val_data = Data(sources[new_node_val_mask], destinations[new_node_val_mask],
                            timestamps[new_node_val_mask],
-                           edge_idxs[new_node_val_mask], labels[new_node_val_mask])
+                           edge_idxs[new_node_val_mask], labels[new_node_val_mask], source_next_dest_sequence[new_node_val_mask])
 
   new_node_test_data = Data(sources[new_node_test_mask], destinations[new_node_test_mask],
                             timestamps[new_node_test_mask], edge_idxs[new_node_test_mask],
-                            labels[new_node_test_mask])
+                            labels[new_node_test_mask], source_next_dest_sequence[new_node_test_mask])
 
   print("The dataset has {} interactions, involving {} different nodes".format(full_data.n_interactions,
                                                                       full_data.n_unique_nodes))
