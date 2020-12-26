@@ -77,20 +77,18 @@ def eval_edge_prediction_jodie(model,
             edge_idxs_batch = data.edge_idxs[s_idx:e_idx]
 
             user_static_emb_batch = user_embedding_static[sources_batch]
-            item_static_emb_batch = item_embedding_static[destinations_batch - num_users]
+            item_static_emb_batch = item_embedding_static[destinations_batch - num_users - 1]
 
             size = len(sources_batch)
 
-            next_destinations_batch_fixed = next_destinations_batch - num_users
-
+            next_destinations_batch_fixed = next_destinations_batch - num_users - 1
+            all_destinations_fixed = all_destinations + [max(all_destinations) + 1]
             pred_next_destination_emb = model.predict_next_destination(
                 sources_batch, user_static_emb_batch, destinations_batch, item_static_emb_batch, next_destinations_batch,
                 timestamps_batch, edge_idxs_batch, n_neighbors)
-
-            destinations_embs = torch.cat([model.memory.get_memory(all_destinations), item_embedding_static[np.array(all_destinations) - num_users]], axis=1)
+            destinations_embs = torch.cat([model.memory.get_memory(all_destinations_fixed), item_embedding_static[np.array(all_destinations_fixed) - num_users - 1]], axis=1)
             euclidean_distances = torch.nn.PairwiseDistance()(pred_next_destination_emb.repeat_interleave(repeats=destinations_embs.shape[0], dim=0),
                                                         destinations_embs.repeat(size, 1))
-
             # CALCULATE RANK OF THE TRUE ITEM AMONG ALL ITEMS
             true_item_distance = euclidean_distances[next_destinations_batch_fixed + np.arange(size) * destinations_embs.shape[0]]
             euclidean_distances = euclidean_distances.reshape(destinations_embs.shape[0], size)

@@ -220,7 +220,7 @@ for i in range(args.n_runs):
                                             train_data.next_destination[start_idx:end_idx]
 
         user_static_emb_batch = user_embedding_static[sources_batch]
-        item_static_emb_batch = item_embedding_static[destinations_batch - num_users]
+        item_static_emb_batch = item_embedding_static[destinations_batch - num_users - 1]
 
         edge_idxs_batch = train_data.edge_idxs[start_idx: end_idx]
         timestamps_batch = train_data.timestamps[start_idx:end_idx]
@@ -234,7 +234,7 @@ for i in range(args.n_runs):
 
         tgn = tgn.train()
         exp = tgn.memory.get_memory(next_d_batch)
-        exp_static = item_embedding_static[next_d_batch - num_users]
+        exp_static = item_embedding_static[next_d_batch - num_users - 1]
         exp_full = torch.cat([exp, exp_static], dim=1)
 
         pred = tgn.predict_next_destination(sources_batch, user_static_emb_batch, destinations_batch, item_static_emb_batch, next_d_batch,
@@ -266,7 +266,7 @@ for i in range(args.n_runs):
       # validation on unseen nodes
       train_memory_backup = tgn.memory.backup_memory()
 
-    val_ap, val_auc = eval_edge_prediction_jodie(model=tgn,
+    val_ap = eval_edge_prediction_jodie(model=tgn,
                                                             num_users=num_users,
                                                             user_embedding_static=user_embedding_static,
                                                             item_embedding_static=item_embedding_static,
@@ -281,7 +281,7 @@ for i in range(args.n_runs):
       tgn.memory.restore_memory(train_memory_backup)
 
     # Validate on unseen nodes
-    nn_val_ap, nn_val_auc = eval_edge_prediction_jodie(model=tgn,
+    nn_val_ap = eval_edge_prediction_jodie(model=tgn,
                                                                         num_users=num_users,
                                                                         user_embedding_static=user_embedding_static,
                                                                         item_embedding_static=item_embedding_static,
@@ -311,8 +311,8 @@ for i in range(args.n_runs):
 
     logger.info('epoch: {} took {:.2f}s'.format(epoch, total_epoch_time))
     logger.info('Epoch mean loss: {}'.format(np.mean(m_loss)))
-    logger.info(
-      'val auc: {}, new node val auc: {}'.format(val_auc, nn_val_auc))
+#    logger.info(
+#      'val auc: {}, new node val auc: {}'.format(val_auc, nn_val_auc))
     logger.info(
       'val ap: {}, new node val ap: {}'.format(val_ap, nn_val_ap))
 
@@ -336,7 +336,7 @@ for i in range(args.n_runs):
 
   ### Test
   tgn.embedding_module.neighbor_finder = full_ngh_finder
-  test_ap, test_auc = eval_edge_prediction_jodie(model=tgn,
+  test_ap = eval_edge_prediction_jodie(model=tgn,
                                                               num_users=num_users,
                                                               user_embedding_static=user_embedding_static,
                                                               item_embedding_static=item_embedding_static,
@@ -348,7 +348,7 @@ for i in range(args.n_runs):
     tgn.memory.restore_memory(val_memory_backup)
 
   # Test on unseen nodes
-  nn_test_ap, nn_test_auc = eval_edge_prediction_jodie(model=tgn,
+  nn_test_ap = eval_edge_prediction_jodie(model=tgn,
                                                                           num_users=num_users,
                                                                           user_embedding_static=user_embedding_static,
                                                                           item_embedding_static=item_embedding_static,
@@ -357,9 +357,9 @@ for i in range(args.n_runs):
                                                                           n_neighbors=NUM_NEIGHBORS)
 
   logger.info(
-    'Test statistics: Old nodes -- auc: {}, ap: {}'.format(test_auc, test_ap))
+    'Test statistics: Old nodes -- auc: -, ap: {}'.format(test_ap))
   logger.info(
-    'Test statistics: New nodes -- auc: {}, ap: {}'.format(nn_test_auc, nn_test_ap))
+    'Test statistics: New nodes -- auc: -, ap: {}'.format(nn_test_ap))
   # Save results for this run
   pickle.dump({
     "val_aps": val_aps,
