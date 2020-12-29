@@ -4,6 +4,34 @@ from torch import nn
 from utils.utils import MergeLayer
 
 
+class MyAttention(torch.nn.Module):
+  def __init__(self, embed_dim, kdim, vdim, n_head=1,
+               dropout=0.1):
+    # TODO: fix n_head functionality
+    super(MyAttention, self).__init__()
+    self.embed_dim = embed_dim
+    self.kdim = kdim
+    self.vdim = vdim
+
+    self.n_head = n_head
+    self.dropout = dropout
+
+    self.linearQ = torch.nn.Linear(embed_dim, kdim)
+
+  def forward(self, query, key, value):
+    query = query.transpose(0, 1)
+    key = key.transpose(0, 1)
+    value = value.transpose(0, 1)
+
+    query_out = self.linearQ(query)
+    attn_output_weights = torch.bmm(query_out, key.transpose(1, 2))
+    attn_output_weights = torch.softmax(
+        attn_output_weights, dim=-1)
+    attn_output_weights = torch.dropout(attn_output_weights, p=self.dropout, train=self.training)
+    attn_output = torch.bmm(attn_output_weights, value)
+    return attn_output, attn_output_weights.sum(dim=1)
+
+
 class TemporalAttentionLayer(torch.nn.Module):
   """
   Temporal attention layer. Return the temporal embedding of a node given the node itself,
@@ -25,11 +53,11 @@ class TemporalAttentionLayer(torch.nn.Module):
 
     self.merger = MergeLayer(self.query_dim, n_node_features, n_node_features, output_dimension)
 
-    self.multi_head_target = nn.MultiheadAttention(embed_dim=self.query_dim,
-                                                   kdim=self.key_dim,
-                                                   vdim=self.key_dim,
-                                                   num_heads=n_head,
-                                                   dropout=dropout)
+    self.multi_head_target = MyAttention(embed_dim=self.query_dim,
+                                         kdim=self.key_dim,
+                                         vdim=self.key_dim,
+                                         num_heads=n_head,
+                                         dropout=dropout)
 
   def forward(self, src_node_features, src_time_features, neighbors_features,
               neighbors_time_features, edge_features, neighbors_padding_mask):
