@@ -178,7 +178,7 @@ class TGN(torch.nn.Module):
                                                                               source_nodes,
                                                                               source_node_embedding,
                                                                               edge_times, edge_idxs)
-      updated_nodes = np.unique(np.concat(unique_sources, unique_destinations))
+      updated_nodes = np.unique(np.concatenate([unique_sources, unique_destinations]))
       if self.memory_update_at_start:
         self.memory.store_raw_messages(unique_sources, source_id_to_messages)
         self.memory.store_raw_messages(unique_destinations, destination_id_to_messages)

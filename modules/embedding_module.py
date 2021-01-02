@@ -95,7 +95,7 @@ class GraphEmbedding(EmbeddingModule):
     source_node_features = self.node_features[source_nodes_torch, :]
 
     if self.use_memory:
-      source_node_features = memory[source_nodes, :] + source_node_features
+      source_node_features = memory[source_nodes, :] # + source_node_features
 
     if n_layers == 0:
       return source_node_features
@@ -121,8 +121,11 @@ class GraphEmbedding(EmbeddingModule):
                                                    n_layers=n_layers - 1,
                                                    n_neighbors=n_neighbors)
 
+
       effective_n_neighbors = n_neighbors if n_neighbors > 0 else 1
       neighbor_embeddings = neighbor_embeddings.view(len(source_nodes), effective_n_neighbors, -1)
+      neighbor_embeddings_static = self.node_features[neighbors_torch.view(-1)].view(len(source_nodes), effective_n_neighbors, -1)
+      neighbor_embeddings_full = torch.cat([neighbor_embeddings, neighbor_embeddings_static], axis=2)
       edge_time_embeddings = self.time_encoder(edge_deltas_torch)
 
       edge_features = self.edge_features[edge_idxs, :]
@@ -131,7 +134,7 @@ class GraphEmbedding(EmbeddingModule):
 
       source_embedding = self.aggregate(n_layers, source_node_features,
                                         source_nodes_time_embedding,
-                                        neighbor_embeddings,
+                                        neighbor_embeddings_full,
                                         edge_time_embeddings,
                                         edge_features,
                                         mask)
@@ -196,8 +199,8 @@ class GraphAttentionEmbedding(GraphEmbedding):
                                                   use_memory)
 
     self.attention_models = torch.nn.ModuleList([TemporalAttentionLayer(
-      n_node_features=n_node_features,
-      n_neighbors_features=n_node_features,
+      n_node_features=memory.memory.shape[1],
+      n_neighbors_features=n_node_features + memory.memory.shape[1],
       n_edge_features=n_edge_features,
       time_dim=n_time_features,
       n_head=n_heads,

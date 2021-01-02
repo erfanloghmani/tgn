@@ -18,13 +18,17 @@ class MyAttention(torch.nn.Module):
 
     self.linearQ = torch.nn.Linear(embed_dim, kdim)
 
-  def forward(self, query, key, value):
+  def forward(self, query, key, value, key_padding_mask):
     query = query.transpose(0, 1)
     key = key.transpose(0, 1)
     value = value.transpose(0, 1)
 
     query_out = self.linearQ(query)
     attn_output_weights = torch.bmm(query_out, key.transpose(1, 2))
+    attn_output_weights = attn_output_weights.masked_fill(
+      key_padding_mask.unsqueeze(1),
+      float('-inf'),
+    )
     attn_output_weights = torch.softmax(
         attn_output_weights, dim=-1)
     attn_output_weights = torch.dropout(attn_output_weights, p=self.dropout, train=self.training)
@@ -51,12 +55,12 @@ class TemporalAttentionLayer(torch.nn.Module):
     self.query_dim = n_node_features + time_dim
     self.key_dim = n_neighbors_features + time_dim + n_edge_features
 
-    self.merger = MergeLayer(self.query_dim, n_node_features, n_node_features, output_dimension)
+    self.merger = MergeLayer(self.key_dim, n_node_features, n_node_features, output_dimension)
 
     self.multi_head_target = MyAttention(embed_dim=self.query_dim,
                                          kdim=self.key_dim,
                                          vdim=self.key_dim,
-                                         num_heads=n_head,
+                                         n_head=n_head,
                                          dropout=dropout)
 
   def forward(self, src_node_features, src_time_features, neighbors_features,
