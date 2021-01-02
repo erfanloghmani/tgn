@@ -33,7 +33,7 @@ class MyAttention(torch.nn.Module):
         attn_output_weights, dim=-1)
     attn_output_weights = torch.dropout(attn_output_weights, p=self.dropout, train=self.training)
     attn_output = torch.bmm(attn_output_weights, value)
-    return attn_output, attn_output_weights.sum(dim=1)
+    return attn_output, attn_output_weights.sum(dim=1), query_out.detach().clone()
 
 
 class TemporalAttentionLayer(torch.nn.Module):
@@ -99,8 +99,8 @@ class TemporalAttentionLayer(torch.nn.Module):
 
     # print(query.shape, key.shape)
 
-    attn_output, attn_output_weights = self.multi_head_target(query=query, key=key, value=key,
-                                                              key_padding_mask=neighbors_padding_mask)
+    attn_output, attn_output_weights, query_out = self.multi_head_target(query=query, key=key, value=key,
+                                                                         key_padding_mask=neighbors_padding_mask)
 
     # mask = torch.unsqueeze(neighbors_padding_mask, dim=2)  # mask [B, N, 1]
     # mask = mask.permute([0, 2, 1])
@@ -119,4 +119,4 @@ class TemporalAttentionLayer(torch.nn.Module):
     # Skip connection with temporal attention over neighborhood and the features of the node itself
     attn_output = self.merger(attn_output, src_node_features)
 
-    return attn_output, attn_output_weights
+    return attn_output, (attn_output_weights, query_out)

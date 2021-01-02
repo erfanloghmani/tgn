@@ -34,9 +34,9 @@ def eval_edge_prediction(model, negative_edge_sampler, data, n_neighbors, batch_
       size = len(sources_batch)
       _, negative_samples = negative_edge_sampler.sample(size)
 
-      pos_prob, neg_prob, _ = model.compute_edge_probabilities(sources_batch, destinations_batch,
-                                                               negative_samples, timestamps_batch,
-                                                               edge_idxs_batch, n_neighbors)
+      pos_prob, neg_prob, _, attn_info = model.compute_edge_probabilities(sources_batch, destinations_batch,
+                                                                          negative_samples, timestamps_batch,
+                                                                          edge_idxs_batch, n_neighbors)
       all_pos_prob[s_idx:e_idx] = pos_prob.detach().clone()[:, 0]
 
       pred_score = np.concatenate([(pos_prob).cpu().numpy(), (neg_prob).cpu().numpy()])
