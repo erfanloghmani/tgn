@@ -54,6 +54,7 @@ class TemporalAttentionLayer(torch.nn.Module):
 
     self.query_dim = n_node_features + time_dim
     self.key_dim = n_neighbors_features + time_dim + n_edge_features
+    print(n_neighbors_features, time_dim, n_edge_features)
 
     self.merger = MergeLayer(self.key_dim, n_node_features, n_node_features, output_dimension)
 

@@ -23,6 +23,8 @@ def eval_edge_prediction(model, negative_edge_sampler, data, n_neighbors, batch_
     num_test_batch = math.ceil(num_test_instance / TEST_BATCH_SIZE)
 
     all_pos_prob = torch.zeros(data.sources.shape[0])
+    all_attn_history = torch.zeros(data.sources.shape[0], 10)
+    all_attn_vec = torch.zeros(data.sources.shape[0], 517)
     for k in range(num_test_batch):
       s_idx = k * TEST_BATCH_SIZE
       e_idx = min(num_test_instance, s_idx + TEST_BATCH_SIZE)
@@ -38,6 +40,8 @@ def eval_edge_prediction(model, negative_edge_sampler, data, n_neighbors, batch_
                                                                           negative_samples, timestamps_batch,
                                                                           edge_idxs_batch, n_neighbors)
       all_pos_prob[s_idx:e_idx] = pos_prob.detach().clone()[:, 0]
+      all_attn_history[s_idx:e_idx] = attn_info[0][:e_idx - s_idx, :].detach().clone()
+      all_attn_vec[s_idx:e_idx] = attn_info[1][:e_idx- s_idx, 0, :].detach().clone()
 
       pred_score = np.concatenate([(pos_prob).cpu().numpy(), (neg_prob).cpu().numpy()])
       true_label = np.concatenate([np.ones(size), np.zeros(size)])
@@ -45,7 +49,7 @@ def eval_edge_prediction(model, negative_edge_sampler, data, n_neighbors, batch_
       val_ap.append(average_precision_score(true_label, pred_score))
       val_auc.append(roc_auc_score(true_label, pred_score))
 
-  return np.mean(val_ap), np.mean(val_auc), all_pos_prob
+  return np.mean(val_ap), np.mean(val_auc), all_pos_prob, all_attn_history, all_attn_vec
 
 
 def eval_node_classification(tgn, decoder, data, edge_idxs, batch_size, n_neighbors):
