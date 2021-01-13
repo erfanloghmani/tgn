@@ -57,6 +57,7 @@ def eval_edge_prediction_jodie(model,
     # negatives for validation / test set)
 
     val_ranks = []
+    r10s = []
     with torch.no_grad():
         model = model.eval()
         # While usually the test batch size is as big as it fits in memory, here we keep it the same
@@ -94,10 +95,11 @@ def eval_edge_prediction_jodie(model,
             euclidean_distances = euclidean_distances.reshape(destinations_embs.shape[0], size)
             euclidean_distances_smaller = (euclidean_distances < true_item_distance).data.cpu().numpy()
             true_item_rank = euclidean_distances_smaller.sum(axis=0) + 1
-
+            
             val_ranks.extend(true_item_rank.tolist())
+            r10s.extend((true_item_rank < 10).astype(int).tolist())
 
-    return np.mean(val_ranks)
+    return np.mean(val_ranks), np.mean(r10s)
 
 def eval_node_classification(tgn, decoder, data, edge_idxs, batch_size, n_neighbors):
   pred_prob = np.zeros(len(data.sources))

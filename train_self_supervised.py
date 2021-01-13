@@ -266,7 +266,7 @@ for i in range(args.n_runs):
       # validation on unseen nodes
       train_memory_backup = tgn.memory.backup_memory()
 
-    val_ap = eval_edge_prediction_jodie(model=tgn,
+    val_ap, val_r10 = eval_edge_prediction_jodie(model=tgn,
                                                             num_users=num_users,
                                                             user_embedding_static=user_embedding_static,
                                                             item_embedding_static=item_embedding_static,
@@ -281,7 +281,7 @@ for i in range(args.n_runs):
       tgn.memory.restore_memory(train_memory_backup)
 
     # Validate on unseen nodes
-    nn_val_ap = eval_edge_prediction_jodie(model=tgn,
+    nn_val_ap, nn_val_r10 = eval_edge_prediction_jodie(model=tgn,
                                                                         num_users=num_users,
                                                                         user_embedding_static=user_embedding_static,
                                                                         item_embedding_static=item_embedding_static,
@@ -315,6 +315,8 @@ for i in range(args.n_runs):
 #      'val auc: {}, new node val auc: {}'.format(val_auc, nn_val_auc))
     logger.info(
       'val ap: {}, new node val ap: {}'.format(val_ap, nn_val_ap))
+    logger.info(
+      'val r10: {}, new node val r10: {}'.format(val_r10, nn_val_r10))
 
     # Early stopping
     if early_stopper.early_stop_check(val_ap):
