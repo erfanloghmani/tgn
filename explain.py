@@ -195,18 +195,20 @@ def explain(model, data, interaction_idx, negative_edge_sampler, k=10):
         for c, seq in enumerate(sampled_sequences):
             print(c, seq)
             model.memory.restore_memory(train_memory_backup)
+            cur_edge_idx = train_data.edge_idxs[-1] + 1
             seq.append(interaction_idx)
             for i, pidx in enumerate(seq):
-                sources_batch = data.sources[pidx:pidx + 1]
+                sources_batch = 0
                 destinations_batch = data.destinations[pidx:pidx + 1]
                 timestamps_batch = data.timestamps[pidx:pidx + 1]
-                edge_idxs_batch = data.edge_idxs[pidx:pidx + 1]
+                edge_idxs_batch = cur_edge_idx
 
                 _, negative_samples = negative_edge_sampler.sample(1)
 
                 pos_prob, neg_prob = model.compute_edge_probabilities(sources_batch, destinations_batch,
                                                                       negative_samples, timestamps_batch,
                                                                       edge_idxs_batch, NUM_NEIGHBORS)
+                cur_edge_idx += 1
             all_predictions.append(pos_prob.cpu().detach().numpy())
 
     return all_predictions, idxs, previous_interaction_idxs
